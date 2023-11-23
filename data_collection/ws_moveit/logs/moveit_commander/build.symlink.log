@@ -1,0 +1,6 @@
+Symlinking /home/gabriele/ws_moveit/devel/share/moveit_commander/cmake/moveit_commanderConfig.cmake
+Symlinking /home/gabriele/ws_moveit/devel/share/moveit_commander/cmake/moveit_commanderConfig-version.cmake
+Symlinking /home/gabriele/ws_moveit/devel/lib/pkgconfig/moveit_commander.pc
+Symlinking /home/gabriele/ws_moveit/devel/lib/moveit_commander/cmake.lock
+Symlinking /home/gabriele/ws_moveit/devel/lib/moveit_commander/moveit_commander_cmdline.py
+Symlinking /home/gabriele/ws_moveit/devel/lib/python3/dist-packages/moveit_commander/__init__.py
