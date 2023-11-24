@@ -209,7 +209,7 @@ class FrankaRobot(object):
                 pilz_pose = MotionPlanRequest()
                 pilz_pose.planner_id = "CIRC"
                 pilz_pose.group_name = "panda_arm"
-                pilz_pose.max_velocity_scaling_factor = 0.4 # 0.2
+                pilz_pose.max_velocity_scaling_factor = 0.2 # 0.2
                 pilz_pose.max_acceleration_scaling_factor = 0.06 # 0.05
                 pilz_pose.start_state.joint_state.name = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"] 
                 pilz_pose.start_state.joint_state.position = self.move_group.get_current_joint_values()
