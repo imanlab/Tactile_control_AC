@@ -315,12 +315,12 @@ class FrankaRobot(object):
         self.robot_states_formated = []
 
         for data_sample_index in range(len(self.robot_states)):
-            robot_joint_data = self.robot_states[data_sample_index][0]
+            d = self.robot_states[data_sample_index][0]
             ee_state = self.robot_states[data_sample_index][1]
-            self.robot_states_formated.append(list(robot_joint_data.position) + list(robot_joint_data.velocity) + list(robot_joint_data.effort) + 
+            self.robot_states_formated.append(list(d.position) + list(d.velocity) + list(d.effort) + 
                                               [ee_state.position.x, ee_state.position.y, ee_state.position.z,
                                                ee_state.orientation.x, ee_state.orientation.y, ee_state.orientation.z, ee_state.orientation.w])
-            # self.robot_states_formated.append(list(robot_joint_data.position) + list(robot_joint_data.velocity) + list(robot_joint_data.effort))
+            # self.robot_states_formated.append(list(d.position) + list(d.velocity) + list(robot_joint_data.effort))
 
     def save_data(self):
         

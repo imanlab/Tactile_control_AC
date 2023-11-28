@@ -45,16 +45,16 @@ class FrankaRobot(object):
         self.group_names = self.robot.get_group_names()
         self.bridge = CvBridge()
         self.move_group.set_planning_pipeline_id("pilz_industrial_motion_planner") 
-        self.move_group.set_planner_id("LIN")                      # Set to be the straight line planner
+        # self.move_group.set_planner_id("LIN")                      # Set to be the straight line planner
         print(self.move_group.get_interface_description().name)    # Print the planner being used.
 
         # scaling down velocity
-        self.move_group.set_max_velocity_scaling_factor(0.8)      
-        self.move_group.set_max_acceleration_scaling_factor(0.8)
+        
+        self.move_group.set_max_velocity_scaling_factor(0.5)      
+        self.move_group.set_max_acceleration_scaling_factor(0.5)
 
         self.pushing_z_height        = 0.15
         self.starting_depth          = 0.30 # was 35
-        #self.finish_depth            = self.starting_depth + 0.05 + 0.25  # (0.5)
         self.finish_depth            = 0.40
         self.starting_position_width = [-0.08, 0.3]
         self.starting_position = -0.08
@@ -63,22 +63,38 @@ class FrankaRobot(object):
 
         self.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"] 
         self.joint_home = [0.18984723979820606, -0.977749801850428, -0.22761550468348588, -2.526835711730154, -0.20211957115956533, 3.1466847225824988, 0.7832720796780586]
-        self.joint_push = [0.04607601949356312, 0.17021933704864067, -0.13281828155595027, -1.3124015096343356, -0.019060995645703918, 3.009036840939284, 0.8235806091527144]
         self.joint_via_point = [0.04607601949356312, 0.17021933704864067, -0.13281828155595027, -1.3124015096343356, -0.019060995645703918, 3.009036840939284, 0.8235806091527144]
 
-        self.resets           = 5
-        self.pushes_per_reset = 5
+        self.joint_push = [0.04607601949356312, 0.17021933704864067, -0.13281828155595027, -1.3124015096343356, -0.019060995645703918, 3.009036840939284, 0.8235806091527144]
+        
+        self.resets           = 2
+        self.pushes_per_reset = 3
 
         #DATA SAVING:
-        self.datasave_folder = "home/alessandro/Dataset/preliminary_tries/"
+        self.datasave_folder = "/home/alessandro/Dataset/preliminary_tries"
         self.robot_sub       = message_filters.Subscriber('/joint_states', JointState)
         self.fing_cam_sub = message_filters.Subscriber("/fing_camera/color/image_raw", Image)
         self.ts = message_filters.ApproximateTimeSynchronizer([self.robot_sub, self.fing_cam_sub] , queue_size=1, slop=0.1, allow_headerless=True)
-
+        
 
     def pushing_actions(self):
         start_position, start_ori = self.get_robot_task_state()
+        
+        
+        # Initialize the variable
+        tra = None
+        # Keep asking the user until a correct choice is made
+        while tra is None:
+            user_choice = input("Choose 'l' or 'c': ")
 
+            if user_choice == 'l':
+                tra = 1
+            elif user_choice == 'c':
+                tra = 2
+            else:
+                 print("Invalid choice. Please choose 'l' or 'c'.")
+         
+            
         total_pushes = 0
         failure_cases = 0
         for j in range(self.resets):
@@ -87,53 +103,152 @@ class FrankaRobot(object):
                 print("resets: {},   push: {},  total_pushes: {},   failure cases: {}".format(j, i, total_pushes, failure_cases))
                 # self.go_via_point()
                 self.go_home()
-                # self.take_picture()
                 self.go_push()
 
+                #LINEAR MOTION
+                if tra == 1:
+                    # 1. Move to random start position:
+                    self.move_group.set_planner_id("LIN")                      # Set to be the straight line planner
+                    # start_y_position = random.uniform(self.starting_position_width[0], self.starting_position_width[1])
+                    start_y_position = self.starting_position
+                    start_pose = self.move_group.get_current_pose().pose
+                    start_pose.position.x = self.starting_depth
+                    # start_pose.position.x = random.uniform(self.starting_depth, self.finish_depth)
+                    start_pose.position.y = start_y_position
+                    start_pose.position.z = self.pushing_z_height
+                    start_pose.orientation.x = self.pushing_orientation[0]
+                    start_pose.orientation.y = self.pushing_orientation[1]
+                    start_pose.orientation.z = self.pushing_orientation[2]
+                    start_pose.orientation.w = self.pushing_orientation[3]
+           
+                    target = self.move_group.set_pose_target(start_pose) ###### the problem is here
+                    print("ci siamo qui?", target) 
+                    trajectory = self.move_group.plan(target)    
+                    print(trajectory[0])
+                    if trajectory[0] == False:
+                        self.go_home()
+                        failure_cases += 1
+                        break
+                    self.move_group.go(target, wait=True)
+                    
+
+                    #2. Execute pushing action to second random position:
+                    self.move_group.set_planner_id("LIN")                      # Set to be the straight line planner
+                    start_pose = self.move_group.get_current_pose().pose
+                    # finish_y_position = random.uniform(self.starting_position_width[0], self.starting_position_width[1])
+                    finish_y_position = self.finish_position
+                    finish_x_position = random.uniform(self.starting_depth, self.finish_depth)
+                    # finish_y_position = random.uniform(self.starting_position_width[0], start_y_position)
+                    
+                    start_position, start_ori = self.get_robot_task_state()    # calculate required angle of end effector:
+                    euler_ori = euler_from_quaternion(start_ori)
+                    euler_ori = list(euler_ori)
+                    rotational_change = math.atan((start_y_position - finish_y_position) / (self.finish_depth - self.starting_depth))
+                    # rotational_change = math.atan((start_y_position - finish_y_position) / (self.starting_depth - start_pose.position.x))
+                    # rotational_change = math.atan((start_y_position - finish_y_position) / (finish_x_position - self.starting_depth))
+                    # rotational_change = math.atan((start_y_position - finish_y_position) / (finish_x_position - start_pose.position.x))
+                    print(f"rotational change: {rotational_change}")
+                    euler_ori[2] += rotational_change
+                    joint_goal = self.move_group.get_current_joint_values()
+                    # joint_goal[-1] += rotational_change - pi/2
+                    # joint_goal[-1] += - pi
+                    self.move_group.go(joint_goal, wait=True)
+                    self.move_group.stop()
+                    
+
+                    a = input("start_collecting data - enter to continue:")
+                    if a == "n" or a == "N":
+                        break
+
+
+                    #LINEAR PUSHING IN ONE DIRECTION
+
+                    # 3. Make pushing action:
+                    self.move_group.set_planner_id("LIN")
+                    #finish_y_position += 0.1
+                    _, final_ori_quat = self.get_robot_task_state()
+                    finish_pose = self.move_group.get_current_pose().pose
+                    # finish_pose.position.x = finish_pose.position.x - 0.2
+                    finish_pose.position.x -= 0.02
+                    finish_pose.position.y -= 0.12
+                    # finish_pose.position.z += 0.05
+                    finish_pose.orientation.x = final_ori_quat[0]
+                    finish_pose.orientation.y = final_ori_quat[1]
+                    finish_pose.orientation.z = final_ori_quat[2]
+                    finish_pose.orientation.w = final_ori_quat[3]
+                    target = self.move_group.set_pose_target(finish_pose)
+                    trajectory = self.move_group.plan(target)
+                    if trajectory[0] == False:
+                        print("False")
+                        self.go_home()
+                        failure_cases += 1
+                        break
+                    time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
+
+                    self.move_group.go(target, wait=False)
+                    self.data_saver(time_for_trajectory)
+                
                 #ARC MOTION
+                elif tra == 2:
+                    #ARC MOTION
+                    rand_vel = random.uniform(0,1)
+                    rand_acc = random.uniform(0,1)
 
-                pilz_pose = MotionPlanRequest()
-                pilz_pose.planner_id = "CIRC"
-                pilz_pose.group_name = "panda_arm"
-                pilz_pose.max_velocity_scaling_factor = 0.2 # 0.2
-                pilz_pose.max_acceleration_scaling_factor = 0.06 # 0.05
-                pilz_pose.start_state.joint_state.name = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"] 
-                pilz_pose.start_state.joint_state.position = self.move_group.get_current_joint_values()
-                # pilz_pose.start_state.joint_state.velocity = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                # pilz_pose.start_state.joint_state.effort = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                pilz_pose.start_state.joint_state.header.stamp = rospy.Time.now()
-        
-                pose = self.move_group.get_current_pose()
-                pose.pose.position.z += 0.05  # RIGHT ONE DX !!!!
-                pose.pose.position.y -= 0.12  # RIGHT ONE DX !!!!
-                pose.pose.position.x -= 0.02  # RIGHT ONE DX !!!!
-                pose.pose.orientation.x = 0.6847884219250332
-                pose.pose.orientation.y = -0.018653069577975762
-                pose.pose.orientation.z = 0.7265456014775064
-                pose.pose.orientation.w = 0.05337011491865343 
-                constraint = Constraints()
-                position_constraints_pose = PositionConstraint()
+                    pilz_pose = MotionPlanRequest()
+                    pilz_pose.planner_id = "CIRC"
+                    pilz_pose.group_name = "panda_arm"
+                    pilz_pose.max_velocity_scaling_factor = rand_vel # 0.2
+                    print("max vel:",pilz_pose.max_velocity_scaling_factor )
+                    pilz_pose.max_acceleration_scaling_factor = rand_acc # 0.05
+                    pilz_pose.start_state.joint_state.name = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"] 
+                    pilz_pose.start_state.joint_state.position = self.move_group.get_current_joint_values()
+                    # pilz_pose.start_state.joint_state.velocity = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                    # pilz_pose.start_state.joint_state.effort = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                    pilz_pose.start_state.joint_state.header.stamp = rospy.Time.now()
+            
+                    pose = self.move_group.get_current_pose()
+                    print(pose)
+                    # pose.pose.position.z += random.uniform(0.03,0.06)
+                    # pose.pose.position.y -= random.uniform(0,0.2)
+                    # pose.pose.position.x -= random.uniform(0,0.04)
+                    # pose.pose.orientation.x = random.uniform(0.6,0.7)
+                    # pose.pose.orientation.y = random.uniform(-0.1,0.1)
+                    # pose.pose.orientation.z = random.uniform(0.65,0.75)    
+                    # pose.pose.orientation.w = random.uniform(0,0.1)
+                    pose.pose.position.z += 0.05  # RIGHT ONE DX !!!!
+                    pose.pose.position.y -= 0.12  # RIGHT ONE DX !!!!
+                    pose.pose.position.x -= 0.02  # RIGHT ONE DX !!!!
+                    pose.pose.orientation.x = 0.6847884219250332
+                    pose.pose.orientation.y = -0.018653069577975762
+                    pose.pose.orientation.z = 0.7265456014775064     
+                    pose.pose.orientation.w = 0.05337011491865343 
+                    print(pose)
 
-                position_constraints_pose.header = pose.header
+                    constraint = Constraints()
+                    position_constraints_pose = PositionConstraint()
 
-                position_constraints_pose.constraint_region.primitives = SolidPrimitive()
-                position_constraints_pose.constraint_region.primitives.type = 1
-                position_constraints_pose.constraint_region.primitives.dimensions = [0.1, 0.1, 0.1]
-                position_constraints_pose.constraint_region.primitive_poses = Pose()
-                position_constraints_pose.constraint_region.primitive_poses = pose
-                constraint.position_constraints = [position_constraints_pose]
-                pilz_pose.goal_constraints = constraint
+                    position_constraints_pose.header = pose.header
 
-                target = self.move_group.set_pose_target(pose)
-                trajectory = self.move_group.plan(target)
-                if trajectory[0] == False:
-                     print("False")
-                     self.go_home()
-                     failure_cases += 1
-                     break
-                time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
-                self.move_group.go(target, wait=False)
-                self.data_saver(time_for_trajectory)
+                    position_constraints_pose.constraint_region.primitives = SolidPrimitive()
+                    position_constraints_pose.constraint_region.primitives.type = 1
+                    position_constraints_pose.constraint_region.primitives.dimensions = [0.1, 0.1, 0.1]
+                    position_constraints_pose.constraint_region.primitive_poses = Pose()
+                    position_constraints_pose.constraint_region.primitive_poses = pose
+                    constraint.position_constraints = [position_constraints_pose]
+                    pilz_pose.goal_constraints = constraint
+
+                    target = self.move_group.set_pose_target(pose)
+                    print("TAAAAAAARGET: ", target)
+                    trajectory = self.move_group.plan(target)
+                    if trajectory[0] == False:
+                        print("False")
+                        self.go_home()
+                        failure_cases += 1
+                        break
+                    #joint_values = self.move_group.get_current_joint_values()
+                    time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
+                    self.move_group.go(target, wait=False)
+                    self.data_saver(time_for_trajectory)
 
                 total_pushes += 1
                 
@@ -145,6 +260,7 @@ class FrankaRobot(object):
         rate                = rospy.Rate(10)
         self.robot_states   = []
         self.camera_finger  = []
+        #self.jacobian_data  = []    #added for storing the jacobian
         self.prev_i, self.i = 0, 1
 
         self.ts.registerCallback(self.read_robot_data)
@@ -161,23 +277,22 @@ class FrankaRobot(object):
             if self.i != self.prev_i:
                 self.prev_i = self.i
                 ee_state = self.move_group.get_current_pose().pose
-                j_matrix = self.move_group.get_jacobian_matrix()   #Get the jacobian matrix of the group as a list         
-                self.robot_states.append([robot_joint_data, ee_state, j_matrix])
+                self.robot_states.append([robot_joint_data, ee_state])
                 self.camera_finger.append(fing_cam)
 
     def format_data_for_saving(self):
         self.robot_states_formated = []
-
+        
         for data_sample_index in range(len(self.robot_states)):
-            d = self.robot_states[data_sample_index][0]
+            robot_joint_data = self.robot_states[data_sample_index][0]
             ee_state = self.robot_states[data_sample_index][1]
-            self.robot_states_formated.append(list(d.position) + list(d.velocity) + list(d.effort) + 
-                                              [ee_state.position.x, ee_state.position.y, ee_state.position.z,
-                                               ee_state.orientation.x, ee_state.orientation.y, ee_state.orientation.z, ee_state.orientation.w] )
-
+            self.robot_states_formated.append(list(robot_joint_data.position) + list(robot_joint_data.velocity) + list(robot_joint_data.effort) + 
+                                            [ee_state.position.x, ee_state.position.y, ee_state.position.z,
+                                            ee_state.orientation.x, ee_state.orientation.y, ee_state.orientation.z, ee_state.orientation.w])# + flattened_jac)
     def save_data(self):
         print("robot_states", np.array(self.robot_states).shape)
         print("camera_finger", np.array(self.camera_finger).shape)
+
 
         #create new folder for this experiment:
         folder = str(self.datasave_folder + '/data_sample_' + datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
@@ -189,13 +304,12 @@ class FrankaRobot(object):
         robot_states_col = ["position_panda_joint1", "position_panda_joint2", "position_panda_joint3", "position_panda_joint4", "position_panda_joint5", "position_panda_joint6", "position_panda_joint7", "position_panda_finger_joint1", "position_panda_finger_joint2",
         "velocity_panda_joint1", "velocity_panda_joint2", "velocity_panda_joint3", "velocity_panda_joint4", "velocity_panda_joint5", "velocity_panda_joint6", "velocity_panda_joint7", "velocity_panda_finger_joint1", "velocity_panda_finger_joint2",
         "effort_panda_joint1", "panda_joint2", "effort_panda_joint3", "effort_panda_joint4", "panda_joint5", "effort_panda_joint6", "effort_panda_joint7", "effort_panda_finger_joint1", "effort_panda_finger_joint2",
-        "ee_state_position_x", "ee_state_position_y", "ee_state_position_z", "ee_state_orientation_x", "ee_state_orientation_y", "ee_state_orientation_z", "ee_state_orientation_w","j_11", "j_12", "j_13", "j_14", "j_15", 
-        "j_16", "j_17", "j_21", "j_22", "j_23", "j_24", "j_25", "j_26", "j_27", "j_31", "j_32", "j_33", "j_34", "j_35", "j_36", "j_37", "j_41", "j_42", "j_43", "j_44", "j_45", "j_46", "j_47", "j_51", "j_52", "j_53", "j_54", 
-        "j_55", "j_56", "j_57", "j_61", "j_62", "j_63", "j_64", "j_65", "j_66", "j_67"]
+        "ee_state_position_x", "ee_state_position_y", "ee_state_position_z", "ee_state_orientation_x", "ee_state_orientation_y", "ee_state_orientation_z", "ee_state_orientation_w"]#"j_11", "j_12", "j_13", "j_14", "j_15", 
+        # "j_16", "j_17", "j_21", "j_22", "j_23", "j_24", "j_25", "j_26", "j_27", "j_31", "j_32", "j_33", "j_34", "j_35", "j_36", "j_37", "j_41", "j_42", "j_43", "j_44", "j_45", "j_46", "j_47", "j_51", "j_52", "j_53", "j_54", 
+        # "j_55", "j_56", "j_57", "j_61", "j_62", "j_63", "j_64", "j_65", "j_66", "j_67"]
 
         T0.to_csv(folder + '/robot_state.csv', header=robot_states_col, index=False)
         np.save(folder + '/camera_finger.npy', np.array([self.bridge.imgmsg_to_cv2(image, desired_encoding='passthrough') for image in self.camera_finger]))
-
 
 
     def go_home(self):
@@ -204,6 +318,7 @@ class FrankaRobot(object):
         
     def go_push(self):
         self.move_group.set_planner_id("PTP")
+        # self.move_group.go(self.target_pose, wait=True)
         self.move_group.go(self.joint_push, wait=True)
 
     def go_via_point(self):
@@ -220,20 +335,40 @@ class FrankaRobot(object):
         pose.pose.position.x = start_position[0]
         pose.pose.position.y = start_position[1]
         pose.pose.position.z = start_position[2]
+
         pose.pose.orientation.x = orientation[0]
         pose.pose.orientation.y = orientation[1]
         pose.pose.orientation.z = orientation[2]
         pose.pose.orientation.w = orientation[3]
         return pose
 
+def reset_objects(self):
+        # move home first (to get the robot up high enough)
+        self.move_group.set_named_target('ready')
+        self.move_group.go()
 
+        # Move above the pushback point:
+        self.move_group.set_planner_id("PTP")                      # Set to be the straight line planner
+        self.move_group.go([0.07130824142401027, 0.8614598760406538, -0.16447389670298204, -0.9640181670858131, 0.13709807091064682, 1.8604888006846219, 0.7095731452172556], wait=True)
 
+        # Move down to the pushback point:
+        self.move_group.go([0.06827783184260813, 1.0580782766974726, -0.16370692051658037, -0.9703260839895288, 0.13953893815809099, 2.066282942907594, 0.7095669528161733], wait=True)
 
-    
+        # Push the block back towards the robot to reset the objects.
+        self.move_group.set_planner_id("LIN")                      # Set to be the straight line planner
+        self.move_group.go([0.13260246841531056, 0.34646877631008416, -0.14746936818756937, -2.2979664011990875, 0.11272908575888033, 2.6471211875279743, 0.6693391410410404], wait=True)
 
+        # move back home (to get the robot up high enough)
+        self.move_group.set_planner_id("PTP")                      # Set to be the straight line planner
+        self.move_group.go([0.12347067714783183, 0.0752346964597091, -0.17116823404775366, -1.9258203851829596, 0.0030568404994491065, 2.040577341397677, 0.7074800998503142], wait=True)
 
+        # moveto the side to push the block back:
+        self.move_group.go([0.5625205920607905, -0.12322370656475262, 0.1751817361488022, -2.1664951839073514, 0.07415023610326978, 2.071069740253273, 1.4965139810825394], wait=True)
+        self.move_group.go([0.618022809069619, 0.41956730252173147, 0.1317212792416644, -2.189165379708273, -0.142555658538146, 2.645985071788768, 1.2043076761464278], wait=True)
 
-
+        # # Push the block away from the robot again to ensure it's out of the way.
+        self.move_group.set_planner_id("LIN")                      # Set to be the straight line planner
+        self.move_group.go([0.08850941608377269, 0.6825085006845076, 0.01852105101081915, -1.6987854360623158, -0.025516628348523373, 2.4043064999103683, 0.9282770566848588], wait=True)
 
 
 if __name__ == '__main__':

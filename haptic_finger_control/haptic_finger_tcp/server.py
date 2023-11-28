@@ -16,7 +16,7 @@ from cv_bridge import CvBridge
 
 # Start a socket listening for connections on 0.0.0.0:8000 (0.0.0.0 means
 # all interfaces)
-server_address = ('169.254.175.46', 8000)
+server_address = ('169.254.77.40', 8000)
 server_socket = socket.socket()
 server_socket.bind(server_address)
 server_socket.listen(0)

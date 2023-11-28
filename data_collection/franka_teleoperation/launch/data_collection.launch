@@ -15,17 +15,13 @@
     <include file="$(find panda_moveit_config)/launch/panda_moveit.launch" />
 
     <!-- RVIZ -->
-    <include file="$(find panda_moveit_config)/launch/moveit_rviz.launch" />
+    <!-- <include file="$(find panda_moveit_config)/launch/moveit_rviz.launch" /> -->
 
+    <!-- <group ns="leader">
+   		<node name="FrankaRobotWorkshop" pkg="franka_teleoperation" type="data_collection_ALE.py" 
+        respawn="false" 	output="screen" />    
+	</group> -->
 
-	<node name="realsense_camera_hand" pkg="franka_teleoperation" type="realsense_camera_hand.py" output="screen"/>
-    <node name="realsense_camera_front" pkg="franka_teleoperation" type="realsense_camera_front.py" output="screen"/>
-    <!-- <node name="realsense_camera_side" pkg="franka_teleoperation" type="realsense_camera.py" output="screen"/>
-	<node name="realsense_camera_tilted" pkg="franka_teleoperation" type="realsense_camera_tilted.py" output="screen"/> 
-	 
-        <node pkg="tf2_ros" type="static_transform_publisher" name="camera_link_broadcaster"
-      args="0.861777 0.454605 0.81488   0.170014 0.946437 -0.197778 -0.190359 panda_link0 camera_color_optical_frame" /> -->
-        	
     <!-- <node name="finger_camera" pkg="franka_teleoperation" type="server.py" output="screen"/> -->
 
 
