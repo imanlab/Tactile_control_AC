@@ -63,15 +63,30 @@ class FrankaRobot(object):
 
         self.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"] 
         self.joint_home = [0.18984723979820606, -0.977749801850428, -0.22761550468348588, -2.526835711730154, -0.20211957115956533, 3.1466847225824988, 0.7832720796780586]
-        self.joint_via_point = [0.04607601949356312, 0.17021933704864067, -0.13281828155595027, -1.3124015096343356, -0.019060995645703918, 3.009036840939284, 0.8235806091527144]
-
-        self.joint_push = [0.04607601949356312, 0.17021933704864067, -0.13281828155595027, -1.3124015096343356, -0.019060995645703918, 3.009036840939284, 0.8235806091527144]
-        
-        self.resets           = 2
-        self.pushes_per_reset = 3
+        # self.joint_via_point = [0.04607601949356312, 0.17021933704864067, -0.13281828155595027, -1.3124015096343356, -0.019060995645703918, 3.009036840939284, 0.8235806091527144]
+        self.joint_via_point = [-0.2827285690477829, -0.10776317482340839, 0.25531004340188546, -1.720866153466074, 0.49796132276751903, 3.2227085454915225, 0.20333962609574804]
+        # self.joint_push = [0.04607601949356312, 0.17021933704864067, -0.13281828155595027, -1.3124015096343356, -0.019060995645703918, 3.009036840939284, 0.8235806091527144]
+        # self.joint_push = [0.04308905999495077, 0.1585832643771773, -0.14940384170854504, -1.3571466245316623, 0.02975108286944235, 3.0149748432071917, 0.7491484249470901]
+        self.joint_push = [0.04446678416070445, 0.1751057482563725, -0.16586388862760443, -1.3552765184408364, 0.0260995250113227, 3.0163658870067884, 0.7461208454668522]
+        self.resets           = 50
+        self.pushes_per_reset = 100
 
         #DATA SAVING:
-        self.datasave_folder = "/home/alessandro/Dataset/preliminary_tries"
+        # Initialize the variable
+        pat = None
+        # Keep asking the user until a correct choice is made
+        while pat is None:
+            user_choice = input("Testing pipeline (t) or actual sampling (a)? ")
+
+            if user_choice == 't':
+                pat = 1
+                self.datasave_folder = "/home/alessandro/Dataset/preliminary_tries"
+            elif user_choice == 'a':
+                pat = 1
+                self.datasave_folder = "/home/alessandro/Dataset/Pushing_Single_Strawberry/second_collection"
+            else:
+                 print("Invalid choice. Please choose 't' or 'a'.")
+        # self.datasave_folder = "/home/alessandro/Dataset/Pushing_Single_Strawberry/first_collection"
         self.robot_sub       = message_filters.Subscriber('/joint_states', JointState)
         self.fing_cam_sub = message_filters.Subscriber("/fing_camera/color/image_raw", Image)
         self.ts = message_filters.ApproximateTimeSynchronizer([self.robot_sub, self.fing_cam_sub] , queue_size=1, slop=0.1, allow_headerless=True)
@@ -102,7 +117,8 @@ class FrankaRobot(object):
                 print("  ")
                 print("resets: {},   push: {},  total_pushes: {},   failure cases: {}".format(j, i, total_pushes, failure_cases))
                 # self.go_via_point()
-                self.go_home()
+                if(j==0 and i==0):
+                    self.go_home()
                 self.go_push()
 
                 #LINEAR MOTION
@@ -207,23 +223,26 @@ class FrankaRobot(object):
                     pilz_pose.start_state.joint_state.header.stamp = rospy.Time.now()
             
                     pose = self.move_group.get_current_pose()
-                    print(pose)
-                    # pose.pose.position.z += random.uniform(0.03,0.06)
-                    # pose.pose.position.y -= random.uniform(0,0.2)
-                    # pose.pose.position.x -= random.uniform(0,0.04)
+                    # print(pose)
+
+                    #----------RANDOM------------
+                    pose.pose.position.z += random.uniform(0.02,0.06)
+                    pose.pose.position.y -= random.uniform(0.08,0.16)
+                    pose.pose.position.x -= random.uniform(-0.04,0.05)*1.5
                     # pose.pose.orientation.x = random.uniform(0.6,0.7)
                     # pose.pose.orientation.y = random.uniform(-0.1,0.1)
                     # pose.pose.orientation.z = random.uniform(0.65,0.75)    
                     # pose.pose.orientation.w = random.uniform(0,0.1)
-                    pose.pose.position.z += 0.05  # RIGHT ONE DX !!!!
-                    pose.pose.position.y -= 0.12  # RIGHT ONE DX !!!!
-                    pose.pose.position.x -= 0.02  # RIGHT ONE DX !!!!
+                    # pose.pose.position.z += 0.05  # RIGHT ONE DX !!!!
+                    # pose.pose.position.y -= 0.12  # RIGHT ONE DX !!!!
+                    # pose.pose.position.x -= 0.02  # RIGHT ONE DX !!!!
                     pose.pose.orientation.x = 0.6847884219250332
                     pose.pose.orientation.y = -0.018653069577975762
                     pose.pose.orientation.z = 0.7265456014775064     
                     pose.pose.orientation.w = 0.05337011491865343 
-                    print(pose)
-
+                    print("----------------------  ")
+                    print("x: {},   y: {},  z: {}".format(round(pose.pose.position.x, 3),round(pose.pose.position.y, 3),round(pose.pose.position.z, 3)))
+                    print(" --------------------- ")
                     constraint = Constraints()
                     position_constraints_pose = PositionConstraint()
 
@@ -238,7 +257,7 @@ class FrankaRobot(object):
                     pilz_pose.goal_constraints = constraint
 
                     target = self.move_group.set_pose_target(pose)
-                    print("TAAAAAAARGET: ", target)
+                    #TARGET is always equal to None, don't know why
                     trajectory = self.move_group.plan(target)
                     if trajectory[0] == False:
                         print("False")
@@ -249,18 +268,18 @@ class FrankaRobot(object):
                     time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
                     self.move_group.go(target, wait=False)
                     self.data_saver(time_for_trajectory)
+                    
 
                 total_pushes += 1
                 
                 self.go_via_point()
                 
-            self.go_home()
+            self.go_push()
 
     def data_saver(self, time_for_trajectory):
-        rate                = rospy.Rate(10)
+        rate                = rospy.Rate(30)
         self.robot_states   = []
         self.camera_finger  = []
-        #self.jacobian_data  = []    #added for storing the jacobian
         self.prev_i, self.i = 0, 1
 
         self.ts.registerCallback(self.read_robot_data)
@@ -272,6 +291,7 @@ class FrankaRobot(object):
         t1 = time.time()
         self.rate = (len(self.robot_states)) / (t1-t0)
         self.save_data()
+        print("saved data")
 
     def read_robot_data(self, robot_joint_data, fing_cam):
             if self.i != self.prev_i:
