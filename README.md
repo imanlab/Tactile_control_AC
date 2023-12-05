@@ -2,7 +2,6 @@
 ## Haptic finger connection
 ## Haptic finger:
 
-Move now on the PC of the robot.
 Connect the micro-usb to the port close to HTMI port (the one in the middle) of he raspberryppi device.
 In the wired connection setting of the sensor (Linux Network settings), set raspberryppi IPV6 to "Disable" and the IPV4 to "Linnk-Local".
 Open now different terminals and do the folowing instructions.
@@ -21,10 +20,12 @@ sudo iptables -P FORWARD ACCEPT # Allow all forwarded traffic
 ```
 
 ### Terminal 1 -  client terminal 
+ssh is a pront that allows you to connect remotely to another pc. In this case we connect to the raspberrypi, so we can control it from the terminal in our pc. 
 ```
 ssh pi@raspberrypi.local   # (password:  2880)
 sudo nano client.py
 ```
+the nano prompt allows you to edit the file that comes after the prompt, while sudo gives you the adminstrator permissions required.
 
 ### Terminal 2
 Get the raspberrypi ip adress:
@@ -69,3 +70,29 @@ rqt_image_viewer #and select the topic to print
 ```
 Troubleshoot:
 - If you cannot ssh (or cannot ping raspberrypi.local), sometime a restart or reconnecting the sensor will solve the prblem.
+
+## Data collection with the haptic finger
+
+First of all make sure that the haptic finger is connect and the topic is published. You must see the camera frame in your screen.
+For collecting the data you have to launch the controller and movit as first thing. In particular you have to execute these commands:
+```
+cd tactile_control_ale
+source devel/setup.bash
+roslaunch franka_teleoperation data_collection.launch
+```
+The robot ip is passed as a default argument, change it in the script if you have to. The controller included is 
+```
+franka_control.launch
+```
+while the moveit script is 
+```
+panda_moveit.launch
+```
+from the panda_moveit_config package.
+
+Then in a new terminal you have to run the data_collection_script in which is defined the trajectory you want to send to the robot, read and saves the data etc.. In my case:
+```
+cd /home/alessandro/tactile_control_ale/src/data_collection/franka_teleoperation/src
+python3 data_collection_ALE
+```
+you can modify this scrpit as you want depending on your aims.
