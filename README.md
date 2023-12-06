@@ -95,4 +95,15 @@ Then in a new terminal you have to run the data_collection_script in which is de
 cd /home/alessandro/tactile_control_ale/src/data_collection/franka_teleoperation/src
 python3 data_collection_ALE
 ```
-you can modify this scrpit as you want depending on your aims.
+you can modify this script as you want depending on your aims.
+An ideal Dataset dimension is about 1000 samples taken at a frequency of 30 Hz.
+
+## Preprocessing and training
+
+Before training the prediction model we have to preprocess the data. To do that we use the following script:
+```
+format_data.py
+```
+only after that we can feed the trainer with our formatted data.
+
+TO BE CONTINUED
