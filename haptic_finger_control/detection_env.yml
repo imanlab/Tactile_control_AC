@@ -1,4 +1,4 @@
-name: robofruit
+name: robofruit2
 channels:
   - anaconda
   - pytorch
@@ -159,7 +159,7 @@ dependencies:
     - constantly==15.1.0
     - cryptography==37.0.2
     - cycler==0.11.0
-    - detectron2==0.6+cu113
+    #- detectron2==0.6 #+cu113
     - fonttools==4.33.3
     - future==0.18.2
     - fvcore==0.1.5.post20220512
@@ -185,7 +185,7 @@ dependencies:
     - protobuf==3.19.4
     - pyasn1==0.4.8
     - pyasn1-modules==0.2.8
-    - pycocotools==2.0.4
+    #- pycocotools==2.0.4
     - pycparser==2.21
     - pydot==1.4.2
     - regex==2022.6.2
