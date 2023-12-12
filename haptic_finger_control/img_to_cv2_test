@@ -17,10 +17,13 @@ class image_converter:
 
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/camera/color/image_raw",Image,self.callback)
+    self.video_capture = cv2.VideoCapture()
 
   def callback(self,data):
     try:
       cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+      self.video_capture.open(cv2.CAP_IMAGES, cv_image)
+      
     except CvBridgeError as e:
       print(e)
 
