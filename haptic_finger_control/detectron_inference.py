@@ -33,6 +33,7 @@ for d in ["train"]:
 
 
 cfg = get_cfg()
+cfg.MODEL.DEVICE = "cpu"
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
 cfg.DATASETS.TRAIN = ("strawberry_train",)
 cfg.DATASETS.TEST = ()
