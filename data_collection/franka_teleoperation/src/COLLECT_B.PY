@@ -80,7 +80,7 @@ class FrankaRobot(object):
             user_choice = 't'
             if user_choice == 't':
                 pat = 1
-                self.datasave_folder = "/home/alessandro/Dataset/trajectory/preliminary_tries/robcam"
+                self.datasave_folder = "/home/alessandro/Dataset/trajectory/preliminary_tries/visual"
             elif user_choice == 'a':
                 pat = 1
                 self.datasave_folder = "/home/alessandro/Dataset/trajectory/Pushing_Single_Strawberry/second_collection"
@@ -89,16 +89,16 @@ class FrankaRobot(object):
 
 
         # SUBSCRIBERS
-        self.robot_sub       = message_filters.Subscriber('/joint_states', JointState)
-        self._cam_sub = message_filters.Subscriber("/camera/color/image_raw", Image)
-        # self._visualization_sub = message_filters.Subscriber("/visualization", Image, queue_size = 100)
+        # self.robot_sub       = message_filters.Subscriber('/joint_states', JointState)
+        # self._cam_sub = message_filters.Subscriber("/camera/color/image_raw", Image)
+        self._visualization_sub = message_filters.Subscriber("/visualization", Image, queue_size = 100)
         # self._centroid_sub = message_filters.Subscriber("/centroid", Float32MultiArray)
         # self.ts = message_filters.ApproximateTimeSynchronizer([self.robot_sub, 
         #                                                        self._cam_sub, 
         #                                                        self._visualization_sub], 
         #                                                        queue_size=100, slop=0.1, allow_headerless=True)      #####self._centroid_sub] , 
         
-        self.ts = message_filters.ApproximateTimeSynchronizer([self.robot_sub, self._cam_sub], queue_size=1000, slop=0.1, allow_headerless=True)
+        # self.ts = message_filters.ApproximateTimeSynchronizer([self.robot_sub, self._cam_sub], queue_size=100, slop=0.1, allow_headerless=True)
     
 
     def pushing_actions(self):
@@ -133,12 +133,12 @@ class FrankaRobot(object):
                 pose = self.move_group.get_current_pose()
 
                 #----------RANDOM------------
-                # pose.pose.position.z += random.uniform(0.02,0.06)
-                # pose.pose.position.y -= random.uniform(0.08,0.16)
-                # pose.pose.position.x -= random.uniform(-0.04,0.05)*1.5
-                pose.pose.position.z += 0.05  # RIGHT ONE DX !!!!
-                pose.pose.position.y -= 0.15  # RIGHT ONE DX !!!!
-                pose.pose.position.x -= 0.02  # RIGHT ONE DX !!!!
+                pose.pose.position.z += random.uniform(0.02,0.06)
+                pose.pose.position.y -= random.uniform(0.08,0.16)
+                pose.pose.position.x -= random.uniform(-0.04,0.05)*1.5
+                # pose.pose.position.z += 0.05  # RIGHT ONE DX !!!!
+                # pose.pose.position.y -= 0.12  # RIGHT ONE DX !!!!
+                # pose.pose.position.x -= 0.02  # RIGHT ONE DX !!!!
                 pose.pose.orientation.x = 0.6847884219250332
                 pose.pose.orientation.y = -0.018653069577975762
                 pose.pose.orientation.z = 0.7265456014775064     
@@ -186,8 +186,8 @@ class FrankaRobot(object):
         self.visualization  = []
         self.prev_i, self.i = 0, 1
 
-        self.ts.registerCallback(self.read_robot_data)
-        # self._visualization_sub.registerCallback(self.read_robot_data)
+        # self.ts.registerCallback(self.read_robot_data)
+        self._visualization_sub.registerCallback(self.read_robot_data)
     
         t0 = time.time()
         while not rospy.is_shutdown() and time.time() - t0 < time_for_trajectory:
@@ -199,14 +199,14 @@ class FrankaRobot(object):
         self.save_data()
         print("saved data")
 
-    def read_robot_data(self,  robot_joint_data, bottom_cam):  #,centr
+    def read_robot_data(self, visual):# ,bottom_cam, visual):  #,centr
             if self.i != self.prev_i:
                 self.prev_i = self.i
                 ee_state = self.move_group.get_current_pose().pose
-                self.robot_states.append([robot_joint_data, ee_state])
-                self.camera_bottom.append(bottom_cam)
+                # self.robot_states.append([robot_joint_data, ee_state])
+                # self.camera_bottom.append(bottom_cam)
                 # self.centroid.append(centr)
-                # self.visualization.append(visual)
+                self.visualization.append(visual)
                 
     def format_data_for_saving(self):
         self.robot_states_formatted = []
@@ -217,33 +217,33 @@ class FrankaRobot(object):
             self.robot_states_formatted.append(list(robot_joint_data.position) + list(robot_joint_data.velocity) + list(robot_joint_data.effort) + 
                                             [ee_state.position.x, ee_state.position.y, ee_state.position.z,
                                             ee_state.orientation.x, ee_state.orientation.y, ee_state.orientation.z, ee_state.orientation.w])
-        print(self.robot_states_formatted)
+        
 
     def save_data(self):
-        print("robot_states", np.array(self.robot_states).shape)
-        print("camera_bottom", np.array(self.camera_bottom).shape)
+        # print("robot_states", np.array(self.robot_states).shape)
+        # print("camera_bottom", np.array(self.camera_bottom).shape)The required queue size parThe required queue size parameter specifies how many sets of messages it should store from each input filter (ameter specifies how many sets of messages it should store from each input filter (
         # print("centroids", np.array(self.centroid).shape)
-        # print("visualization", np.array(self.visualization).shape)
+        print("visualization", np.array(self.visualization).shape)
 
 
         #create new folder for this experiment:
         folder = str(self.datasave_folder + '/data_sample_' + datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
         mydir = os.mkdir(folder)
 
-        self.format_data_for_saving()
-        print("robot_states_formatted", np.array(self.robot_states_formatted).shape)
-        T0 = pd.DataFrame(self.robot_states_formatted)
-        print(T0)
-        robot_states_col = ["position_panda_joint1", "position_panda_joint2", "position_panda_joint3", "position_panda_joint4", "position_panda_joint5", "position_panda_joint6", "position_panda_joint7", "position_panda_finger_joint1", "position_panda_finger_joint2",
-        "velocity_panda_joint1", "velocity_panda_joint2", "velocity_panda_joint3", "velocity_panda_joint4", "velocity_panda_joint5", "velocity_panda_joint6", "velocity_panda_joint7", "velocity_panda_finger_joint1", "velocity_panda_finger_joint2",
-        "effort_panda_joint1", "effort_panda_joint2", "effort_panda_joint3", "effort_panda_joint4", "panda_joint5", "effort_panda_joint6", "effort_panda_joint7", "effort_panda_finger_joint1", "effort_panda_finger_joint2",
-        "ee_state_position_x", "ee_state_position_y", "ee_state_position_z", "ee_state_orientation_x", "ee_state_orientation_y", "ee_state_orientation_z", "ee_state_orientation_w"]
+        # self.format_data_for_saving()
+        # print("robot_states_formatted", np.array(self.robot_states_formatted).shape)
+        # T0 = pd.DataFrame(self.robot_states_formatted)
+        # print(T0)
+        # robot_states_col = ["position_panda_joint1", "position_panda_joint2", "position_panda_joint3", "position_panda_joint4", "position_panda_joint5", "position_panda_joint6", "position_panda_joint7", "position_panda_finger_joint1", "position_panda_finger_joint2",
+        # "velocity_panda_joint1", "velocity_panda_joint2", "velocity_panda_joint3", "velocity_panda_joint4", "velocity_panda_joint5", "velocity_panda_joint6", "velocity_panda_joint7", "velocity_panda_finger_joint1", "velocity_panda_finger_joint2",
+        # "effort_panda_joint1", "effort_panda_joint2", "effort_panda_joint3", "effort_panda_joint4", "panda_joint5", "effort_panda_joint6", "effort_panda_joint7", "effort_panda_finger_joint1", "effort_panda_finger_joint2",
+        # "ee_state_position_x", "ee_state_position_y", "ee_state_position_z", "ee_state_orientation_x", "ee_state_orientation_y", "ee_state_orientation_z", "ee_state_orientation_w"]
 
-        T0.to_csv(folder + '/robot_state.csv', header=robot_states_col, index=False)
+        # T0.to_csv(folder + '/robot_state.csv', header=robot_states_col, index=False)
         # T1 = pd.DataFrame(self.centroid)
         # T1.to_csv(folder + '/centroids.csv', header=["x","y"], index=False )
-        np.save(folder + '/bottom_camera.npy', np.array([self.bridge.imgmsg_to_cv2(image, desired_encoding='passthrough') for image in self.camera_bottom]))
-        # np.save(folder + '/visualization.npy', np.array([self.bridge.imgmsg_to_cv2(image, desired_encoding='passthrough') for image in self.visualization]))
+        # np.save(folder + '/bottom_camera.npy', np.array([self.bridge.imgmsg_to_cv2(image, desired_encoding='passthrough') for image in self.camera_bottom]))
+        np.save(folder + '/visualization.npy', np.array([self.bridge.imgmsg_to_cv2(image, desired_encoding='passthrough') for image in self.visualization]))
         
 
     def go_home(self):

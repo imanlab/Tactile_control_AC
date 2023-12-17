@@ -68,8 +68,8 @@ class FrankaRobot(object):
         # self.joint_push = [0.04607601949356312, 0.17021933704864067, -0.13281828155595027, -1.3124015096343356, -0.019060995645703918, 3.009036840939284, 0.8235806091527144]
         # self.joint_push = [0.04308905999495077, 0.1585832643771773, -0.14940384170854504, -1.3571466245316623, 0.02975108286944235, 3.0149748432071917, 0.7491484249470901]
         self.joint_push = [0.04446678416070445, 0.1751057482563725, -0.16586388862760443, -1.3552765184408364, 0.0260995250113227, 3.0163658870067884, 0.7461208454668522]
-        self.resets           = 50
-        self.pushes_per_reset = 100
+        self.resets           = 3
+        self.pushes_per_reset = 3
 
         #DATA SAVING:
         # Initialize the variable
@@ -80,7 +80,7 @@ class FrankaRobot(object):
 
             if user_choice == 't':
                 pat = 1
-                self.datasave_folder = "/home/alessandro/Dataset/preliminary_tries"
+                self.datasave_folder = "/home/alessandro/Dataset/localization/preliminary_tries"
             elif user_choice == 'a':
                 pat = 1
                 self.datasave_folder = "/home/alessandro/Dataset/Pushing_Single_Strawberry/second_collection"
@@ -88,9 +88,9 @@ class FrankaRobot(object):
                  print("Invalid choice. Please choose 't' or 'a'.")
         # self.datasave_folder = "/home/alessandro/Dataset/Pushing_Single_Strawberry/first_collection"
         self.robot_sub       = message_filters.Subscriber('/joint_states', JointState)
-        self.fing_cam_sub = message_filters.Subscriber("/fing_camera/color/image_raw", Image)
-        self.ts = message_filters.ApproximateTimeSynchronizer([self.robot_sub, self.fing_cam_sub] , queue_size=1, slop=0.1, allow_headerless=True)
-        
+        # self.fing_cam_sub = message_filters.Subscriber("/fing_camera/color/image_raw", Image)
+        self.ts = message_filters.ApproximateTimeSynchronizer([self.robot_sub] , queue_size=1, slop=0.1, allow_headerless=True)
+        ######################################################################, self.fing_cam_sub
 
     def pushing_actions(self):
         start_position, start_ori = self.get_robot_task_state()
@@ -293,12 +293,12 @@ class FrankaRobot(object):
         self.save_data()
         print("saved data")
 
-    def read_robot_data(self, robot_joint_data, fing_cam):
+    def read_robot_data(self, robot_joint_data):#, fing_cam):
             if self.i != self.prev_i:
                 self.prev_i = self.i
                 ee_state = self.move_group.get_current_pose().pose
                 self.robot_states.append([robot_joint_data, ee_state])
-                self.camera_finger.append(fing_cam)
+                # self.camera_finger.append(fing_cam)
 
     def format_data_for_saving(self):
         self.robot_states_formated = []
@@ -309,9 +309,11 @@ class FrankaRobot(object):
             self.robot_states_formated.append(list(robot_joint_data.position) + list(robot_joint_data.velocity) + list(robot_joint_data.effort) + 
                                             [ee_state.position.x, ee_state.position.y, ee_state.position.z,
                                             ee_state.orientation.x, ee_state.orientation.y, ee_state.orientation.z, ee_state.orientation.w])# + flattened_jac)
+        print(self.robot_states_formated)
+
     def save_data(self):
         print("robot_states", np.array(self.robot_states).shape)
-        print("camera_finger", np.array(self.camera_finger).shape)
+        # print("camera_finger", np.array(self.camera_finger).shape)
 
 
         #create new folder for this experiment:
@@ -320,7 +322,7 @@ class FrankaRobot(object):
 
         self.format_data_for_saving()
         T0 = pd.DataFrame(self.robot_states_formated)
-
+        print(T0)
         robot_states_col = ["position_panda_joint1", "position_panda_joint2", "position_panda_joint3", "position_panda_joint4", "position_panda_joint5", "position_panda_joint6", "position_panda_joint7", "position_panda_finger_joint1", "position_panda_finger_joint2",
         "velocity_panda_joint1", "velocity_panda_joint2", "velocity_panda_joint3", "velocity_panda_joint4", "velocity_panda_joint5", "velocity_panda_joint6", "velocity_panda_joint7", "velocity_panda_finger_joint1", "velocity_panda_finger_joint2",
         "effort_panda_joint1", "panda_joint2", "effort_panda_joint3", "effort_panda_joint4", "panda_joint5", "effort_panda_joint6", "effort_panda_joint7", "effort_panda_finger_joint1", "effort_panda_finger_joint2",
@@ -329,7 +331,7 @@ class FrankaRobot(object):
         # "j_55", "j_56", "j_57", "j_61", "j_62", "j_63", "j_64", "j_65", "j_66", "j_67"]
 
         T0.to_csv(folder + '/robot_state.csv', header=robot_states_col, index=False)
-        np.save(folder + '/camera_finger.npy', np.array([self.bridge.imgmsg_to_cv2(image, desired_encoding='passthrough') for image in self.camera_finger]))
+        # np.save(folder + '/camera_finger.npy', np.array([self.bridge.imgmsg_to_cv2(image, desired_encoding='passthrough') for image in self.camera_finger]))
 
 
     def go_home(self):
@@ -362,33 +364,33 @@ class FrankaRobot(object):
         pose.pose.orientation.w = orientation[3]
         return pose
 
-def reset_objects(self):
-        # move home first (to get the robot up high enough)
-        self.move_group.set_named_target('ready')
-        self.move_group.go()
+    def reset_objects(self):
+            # move home first (to get the robot up high enough)
+            self.move_group.set_named_target('ready')
+            self.move_group.go()
 
-        # Move above the pushback point:
-        self.move_group.set_planner_id("PTP")                      # Set to be the straight line planner
-        self.move_group.go([0.07130824142401027, 0.8614598760406538, -0.16447389670298204, -0.9640181670858131, 0.13709807091064682, 1.8604888006846219, 0.7095731452172556], wait=True)
+            # Move above the pushback point:
+            self.move_group.set_planner_id("PTP")                      # Set to be the straight line planner
+            self.move_group.go([0.07130824142401027, 0.8614598760406538, -0.16447389670298204, -0.9640181670858131, 0.13709807091064682, 1.8604888006846219, 0.7095731452172556], wait=True)
 
-        # Move down to the pushback point:
-        self.move_group.go([0.06827783184260813, 1.0580782766974726, -0.16370692051658037, -0.9703260839895288, 0.13953893815809099, 2.066282942907594, 0.7095669528161733], wait=True)
+            # Move down to the pushback point:
+            self.move_group.go([0.06827783184260813, 1.0580782766974726, -0.16370692051658037, -0.9703260839895288, 0.13953893815809099, 2.066282942907594, 0.7095669528161733], wait=True)
 
-        # Push the block back towards the robot to reset the objects.
-        self.move_group.set_planner_id("LIN")                      # Set to be the straight line planner
-        self.move_group.go([0.13260246841531056, 0.34646877631008416, -0.14746936818756937, -2.2979664011990875, 0.11272908575888033, 2.6471211875279743, 0.6693391410410404], wait=True)
+            # Push the block back towards the robot to reset the objects.
+            self.move_group.set_planner_id("LIN")                      # Set to be the straight line planner
+            self.move_group.go([0.13260246841531056, 0.34646877631008416, -0.14746936818756937, -2.2979664011990875, 0.11272908575888033, 2.6471211875279743, 0.6693391410410404], wait=True)
 
-        # move back home (to get the robot up high enough)
-        self.move_group.set_planner_id("PTP")                      # Set to be the straight line planner
-        self.move_group.go([0.12347067714783183, 0.0752346964597091, -0.17116823404775366, -1.9258203851829596, 0.0030568404994491065, 2.040577341397677, 0.7074800998503142], wait=True)
+            # move back home (to get the robot up high enough)
+            self.move_group.set_planner_id("PTP")                      # Set to be the straight line planner
+            self.move_group.go([0.12347067714783183, 0.0752346964597091, -0.17116823404775366, -1.9258203851829596, 0.0030568404994491065, 2.040577341397677, 0.7074800998503142], wait=True)
 
-        # moveto the side to push the block back:
-        self.move_group.go([0.5625205920607905, -0.12322370656475262, 0.1751817361488022, -2.1664951839073514, 0.07415023610326978, 2.071069740253273, 1.4965139810825394], wait=True)
-        self.move_group.go([0.618022809069619, 0.41956730252173147, 0.1317212792416644, -2.189165379708273, -0.142555658538146, 2.645985071788768, 1.2043076761464278], wait=True)
+            # moveto the side to push the block back:
+            self.move_group.go([0.5625205920607905, -0.12322370656475262, 0.1751817361488022, -2.1664951839073514, 0.07415023610326978, 2.071069740253273, 1.4965139810825394], wait=True)
+            self.move_group.go([0.618022809069619, 0.41956730252173147, 0.1317212792416644, -2.189165379708273, -0.142555658538146, 2.645985071788768, 1.2043076761464278], wait=True)
 
-        # # Push the block away from the robot again to ensure it's out of the way.
-        self.move_group.set_planner_id("LIN")                      # Set to be the straight line planner
-        self.move_group.go([0.08850941608377269, 0.6825085006845076, 0.01852105101081915, -1.6987854360623158, -0.025516628348523373, 2.4043064999103683, 0.9282770566848588], wait=True)
+            # # Push the block away from the robot again to ensure it's out of the way.
+            self.move_group.set_planner_id("LIN")                      # Set to be the straight line planner
+            self.move_group.go([0.08850941608377269, 0.6825085006845076, 0.01852105101081915, -1.6987854360623158, -0.025516628348523373, 2.4043064999103683, 0.9282770566848588], wait=True)
 
 
 if __name__ == '__main__':
