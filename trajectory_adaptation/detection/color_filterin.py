@@ -3,6 +3,9 @@ import numpy as np
 import rospy
 from geometry_msgs.msg import Point
 
+
+#start a roscore before
+
 def color_filtering(frame):
     hsv=cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     

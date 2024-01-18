@@ -16,7 +16,7 @@ from pykalman import KalmanFilter
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Float64MultiArray, Float64
 from scipy.spatial.transform import Rotation as R
-from python.CppPythonSocket.server import Server
+
 
 ## Optimizer
 from scipy.optimize import Bounds
@@ -33,8 +33,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-import onnx
-import onnxruntime
+# import onnx
+# import onnxruntime
 
 from ACTP.ACTP_model import ACTP
 # from ClassifierLSTM.classifier_model import ClassifierLSTM
@@ -42,3 +42,112 @@ from ClassifierLSTM.seq_classifier_lstm import ClassifierLSTM
 
 from scipy.special import expit
 from scipy.misc import derivative
+
+seed = 42
+context_frames = 10
+sequence_length = 20
+torch.manual_seed(seed)
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+class TrajectoryAdaptation():
+    def __init__(self):
+        self.stop = 0.0
+		self.time_step = 0
+		self.prev_time_step = 0
+		self.translation_x = 0.35
+		self.translation_y = 0.46
+		# self.previous_w = np.random.normal(0, 0.1, 5)
+		self.robot_data 	      = np.zeros((1000, 6))
+		self.action_data 	      = np.zeros((1000, 6))
+		self.robot_data_scaled 	  = np.zeros((1000, 6))
+		self.action_data_scaled   = np.zeros((1000, 6))
+
+		self.optimal_weights      = np.zeros((700, 18))
+		self.optimal_trajectory   = np.zeros((700, 10, 6))
+		self.opt_execution_time   = np.zeros(700)
+		self.optimality           = np.zeros(700)
+		self.num_itr              = np.zeros(700)
+		self.constr_violation     = np.zeros(700)   ###not sure
+
+        self.save_results_path = "/home/alessandro/tactile_control_ale/src/trajectory_adaptation/data/pre_testing"
+        
+        #node initialization
+        rospy.init_node('listener', anonymous=True, disable_signals=True)
+        #functions activation
+		self.model_predict_001_init()
+		self.load_scalers()
+		self.init_sub()
+		self.control_loop()
+
+    def init_sub(self):
+        sync_data_sub = message_filters.Subscriber('/sync_data', Float64MultiArray) #form sync_publisher_node.py
+        self.sync_subscriber = [sync_data_sub]
+        ts_sync = message_filters.ApproximateTimeSynchronizer(self.sync_subscriber, queue_size=1, slop=0.1, allow_headerless=True)
+        ts_sync.registerCallback(self.sub_cb)
+        self.slip_prediction_pub = rospy.Publisher('/slip_prediction', Float64, queue_size=11)
+        self.optimal_traj_pub = rospy.Publisher('/optimal_traj', Float64MultiArray, queue_size=11)
+    
+    def load_scalers(self):
+        self.scaler_path = "/home/alessandro/tactile_control_ale/src/trajectory_adaptation/python-scripts/scalers"
+        #ROBOT SCALER
+        #e.g. 		self.robot_min_max_scalar    = [load(open(self.scaler_path + '/robot_min_max_scalar_'+feature +'.pkl', 'rb')) for feature in ['vx', 'vy', 'vz', 'wx', 'wy', 'wz']]
+        #think i will just have px and py feature, maximum pz
+        #POSE PREDICTION SCALER
+
+    def descale_data():
+        #dont know if i need this
+        return None
+    
+    def model_predict_001_init(self):
+            self.model = torch.load("/home/alessandro/tactile_control_ale/src/trajectory_adaptation/models/ACTP", map_location='cpu').to(device).double()
+            self.model.eval()
+
+    def BasisFuncGauss(self, N, h, dt):
+        self.T = int(round(1/dt+1))
+        self.Phi = np.zeros((self.t-1,N))
+        for z in range(0,self.T-1):
+            t = z*dt
+            self.phi = np.zeros((1, N))
+            for k in range(1,N+1):
+                c = (k-1)/(N-1)
+                self.phi[0,k-1] = np.exp(-(t - c)*(t - c)/(2*h))
+            self.Phi[z,:N] = self.phi[0, :N]
+        self.Phi = self.Phi/np.transpose(mat.repmat(np.sum(self.Phi,axis=1),N,1)); #[TxN]   Normalizes the rows of self.Phi such that each row sums to 1.
+        return self.Phi #[TxN]
+    
+
+
+    def obj_func(self, w):
+            a = 0
+            return a
+    
+    def scale_action(self, action):
+        for index, min_max_scalar in enumerate(self.robot_min_max_scalar):
+            action[:, index] = np.squeeze(min_max_scalar.transform(action[:, index].reshape(-1, 1)))
+
+        action = action[:, np.newaxis, :].astype(np.float32)
+
+        return action
+    
+    
+
+    
+        
+
+
+
+
+
+    def print_rate(self):
+            t1 = time.time()
+            rate = self.time_step / (t1-self.t0)
+            print("RATE: ", rate)
+
+
+if __name__ == "__main__":	
+	mf = TrajectoryAdaptation()
+
+	mf.print_rate()
+	mf.save_results()
