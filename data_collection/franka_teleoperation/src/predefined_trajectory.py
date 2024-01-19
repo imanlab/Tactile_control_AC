@@ -51,14 +51,6 @@ class Trajectory():
         self.move_group.set_max_velocity_scaling_factor(0.5)      
         self.move_group.set_max_acceleration_scaling_factor(0.5)
 
-        self.pushing_z_height        = 0.15
-        self.starting_depth          = 0.30 # was 35
-        self.finish_depth            = 0.40
-        self.starting_position_width = [-0.08, 0.3]
-        self.starting_position = -0.08
-        self.finish_position = 0.3
-        self.pushing_orientation     = [-0.9238638957839016, 0.3827149349905697, -0.0020559535525728366, 0.0007440814108405214]
-
         self.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"] 
         self.joint_home = [0.18984723979820606, -0.977749801850428, -0.22761550468348588, -2.526835711730154, -0.20211957115956533, 3.1466847225824988, 0.7832720796780586]
         # self.joint_via_point = [0.04607601949356312, 0.17021933704864067, -0.13281828155595027, -1.3124015096343356, -0.019060995645703918, 3.009036840939284, 0.8235806091527144]
@@ -89,16 +81,12 @@ class Trajectory():
                     self.go_home()
                 self.go_push()
 
-                #ARC MOTION
-                rand_vel = random.uniform(0,1)
-                rand_acc = random.uniform(0,1)
-
                 pilz_pose = MotionPlanRequest()
                 pilz_pose.planner_id = "CIRC"
                 pilz_pose.group_name = "panda_arm"
-                pilz_pose.max_velocity_scaling_factor = rand_vel # 0.2
+                pilz_pose.max_velocity_scaling_factor =  0.2
                 print("max vel:",pilz_pose.max_velocity_scaling_factor )
-                pilz_pose.max_acceleration_scaling_factor = rand_acc # 0.05
+                pilz_pose.max_acceleration_scaling_factor =  0.02
                 pilz_pose.start_state.joint_state.name = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"] 
                 pilz_pose.start_state.joint_state.position = self.move_group.get_current_joint_values()
                 # pilz_pose.start_state.joint_state.velocity = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -106,11 +94,13 @@ class Trajectory():
                 pilz_pose.start_state.joint_state.header.stamp = rospy.Time.now()
         
                 pose = self.move_group.get_current_pose()
-                # print(pose)
+                print("----------------------  ")
+                print("x: {},   y: {},  z: {}".format(round(pose.pose.position.x, 3),round(pose.pose.position.y, 3),round(pose.pose.position.z, 3)))
+                print(" --------------------- ")
 
-                pose.pose.position.z += 0.05  # RIGHT ONE DX !!!!
-                pose.pose.position.y -= 0.12  # RIGHT ONE DX !!!!
-                pose.pose.position.x -= 0.02  # RIGHT ONE DX !!!!
+                pose.pose.position.z += 0.0#0.05  
+                pose.pose.position.y -= 0.15  #0.12  
+                pose.pose.position.x -= 0.00  #0.05
                 pose.pose.orientation.x = 0.6847884219250332
                 pose.pose.orientation.y = -0.018653069577975762
                 pose.pose.orientation.z = 0.7265456014775064     
@@ -142,7 +132,8 @@ class Trajectory():
                 #joint_values = self.move_group.get_current_joint_values()
                 time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
                 self.move_group.go(target, wait=False)
-                
+                self.move_group.stop()
+                #self.move_group.clear_pose_targets()
 
             total_pushes += 1
             
@@ -166,7 +157,7 @@ class Trajectory():
         self.move_group.go(self.joint_push, wait=True)
 
     def go_via_point(self):
-        self.move_group.set_planner_id("LIN")
+        self.move_group.set_planner_id("PTP")   #was LIN
         self.move_group.go(self.joint_via_point, wait=True)
 
 if __name__ == '__main__':
