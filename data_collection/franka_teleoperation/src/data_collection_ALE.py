@@ -185,7 +185,7 @@ class FrankaRobot(object):
                     _, final_ori_quat = self.get_robot_task_state()
                     finish_pose = self.move_group.get_current_pose().pose
                     # finish_pose.position.x = finish_pose.position.x - 0.2
-                    finish_pose.position.x -= 0.02
+                    finish_pose.position.x -= 0.0
                     finish_pose.position.y -= 0.12
                     # finish_pose.position.z += 0.05
                     finish_pose.orientation.x = final_ori_quat[0]
@@ -207,15 +207,14 @@ class FrankaRobot(object):
                 #ARC MOTION
                 elif tra == 2:
                     #ARC MOTION
-                    rand_vel = random.uniform(0,1)
-                    rand_acc = random.uniform(0,1)
+            
 
                     pilz_pose = MotionPlanRequest()
                     pilz_pose.planner_id = "CIRC"
                     pilz_pose.group_name = "panda_arm"
-                    pilz_pose.max_velocity_scaling_factor = rand_vel # 0.2
+                    pilz_pose.max_velocity_scaling_factor =  0.2
                     print("max vel:",pilz_pose.max_velocity_scaling_factor )
-                    pilz_pose.max_acceleration_scaling_factor = rand_acc # 0.05
+                    pilz_pose.max_acceleration_scaling_factor = 0.05
                     pilz_pose.start_state.joint_state.name = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"] 
                     pilz_pose.start_state.joint_state.position = self.move_group.get_current_joint_values()
                     # pilz_pose.start_state.joint_state.velocity = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -226,16 +225,16 @@ class FrankaRobot(object):
                     # print(pose)
 
                     #----------RANDOM------------
-                    pose.pose.position.z += random.uniform(0.02,0.06)
-                    pose.pose.position.y -= random.uniform(0.08,0.16)
-                    pose.pose.position.x -= random.uniform(-0.04,0.05)*1.5
+                    # pose.pose.position.z += random.uniform(0.02,0.06)
+                    # pose.pose.position.y -= random.uniform(0.08,0.16)
+                    # pose.pose.position.x -= random.uniform(-0.04,0.05)*1.5
                     # pose.pose.orientation.x = random.uniform(0.6,0.7)
                     # pose.pose.orientation.y = random.uniform(-0.1,0.1)
                     # pose.pose.orientation.z = random.uniform(0.65,0.75)    
                     # pose.pose.orientation.w = random.uniform(0,0.1)
-                    # pose.pose.position.z += 0.05  # RIGHT ONE DX !!!!
-                    # pose.pose.position.y -= 0.12  # RIGHT ONE DX !!!!
-                    # pose.pose.position.x -= 0.02  # RIGHT ONE DX !!!!
+                    pose.pose.position.z += 0.00  # RIGHT ONE DX !!!!
+                    pose.pose.position.y -= 0.2  # RIGHT ONE DX !!!!
+                    pose.pose.position.x -= 0.00  # RIGHT ONE DX !!!!
                     pose.pose.orientation.x = 0.6847884219250332
                     pose.pose.orientation.y = -0.018653069577975762
                     pose.pose.orientation.z = 0.7265456014775064     

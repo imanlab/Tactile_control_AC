@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 import os
 import sys
@@ -65,6 +66,8 @@ class Trajectory():
 
 
         self.robot_sub       = message_filters.Subscriber('/joint_states', JointState)
+        self.centroid_sub    = message_filters.Subscriber('/centroid', Point)
+        self.ts              = message_filters.ApproximateTimeSynchronizer([self.robot_sub, self.centroid_sub] , queue_size=1, slop=0.1, allow_headerless=True)
 
 
     def pushing_actions(self):
@@ -98,9 +101,9 @@ class Trajectory():
                 print("x: {},   y: {},  z: {}".format(round(pose.pose.position.x, 3),round(pose.pose.position.y, 3),round(pose.pose.position.z, 3)))
                 print(" --------------------- ")
 
-                pose.pose.position.z += 0.0#0.05  
-                pose.pose.position.y -= 0.15  #0.12  
-                pose.pose.position.x -= 0.00  #0.05
+                pose.pose.position.z += 0.0  #0.05  
+                pose.pose.position.y -= 0.2  #0.12  
+                pose.pose.position.x -= 0.0  #0.05
                 pose.pose.orientation.x = 0.6847884219250332
                 pose.pose.orientation.y = -0.018653069577975762
                 pose.pose.orientation.z = 0.7265456014775064     
@@ -122,7 +125,6 @@ class Trajectory():
                 pilz_pose.goal_constraints = constraint
 
                 target = self.move_group.set_pose_target(pose)
-                #TARGET is always equal to None, don't know why
                 trajectory = self.move_group.plan(target)
                 if trajectory[0] == False:
                     print("False")
@@ -132,7 +134,8 @@ class Trajectory():
                 #joint_values = self.move_group.get_current_joint_values()
                 time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
                 self.move_group.go(target, wait=False)
-                self.move_group.stop()
+                self.data_saver(time_for_trajectory)
+                #self.move_group.stop()
                 #self.move_group.clear_pose_targets()
 
             total_pushes += 1
@@ -141,10 +144,73 @@ class Trajectory():
             
         self.go_push()
 
+    def data_saver(self, time_for_trajectory):
+        rate                = rospy.Rate(30)
+        self.robot_states   = []
+        self.camera_finger  = []
+        self.prev_i, self.i = 0, 1
+
+        self.ts.registerCallback(self.read_robot_data)
+        t0 = time.time()
+        while not rospy.is_shutdown() and time.time() - t0 < time_for_trajectory:
+            print(time_for_trajectory, "    ----     ", time.time() - t0, end="\r")
+            self.i += 1
+            rate.sleep()
+        t1 = time.time()
+        self.rate = (len(self.robot_states)) / (t1-t0)
+        self.save_data()
+
+    def format_data_for_saving(self):
+        self.robot_states_formated = []
+        
+        for data_sample_index in range(len(self.robot_states)):
+            robot_joint_data = self.robot_states[data_sample_index][0]
+            ee_state = self.robot_states[data_sample_index][1]
+            self.robot_states_formated.append(list(robot_joint_data.position) + list(robot_joint_data.velocity) + list(robot_joint_data.effort) + 
+                                            [ee_state.position.x, ee_state.position.y, ee_state.position.z,
+                                            ee_state.orientation.x, ee_state.orientation.y, ee_state.orientation.z, ee_state.orientation.w])# + flattened_jac)
+        
+
+    def save_data():
+        folder = str(self.datasave_folder + '/data_sample_' + datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
+        mydir = os.mkdir(folder)
+
+        self.format_data_for_saving()
+        T0 = pd.DataFrame(self.robot_states_formated)
+        T1 = pd.DataFrame(self.centroid)
+        print(T0)
+        robot_states_col = ["position_panda_joint1", "position_panda_joint2", "position_panda_joint3", "position_panda_joint4", "position_panda_joint5", "position_panda_joint6", "position_panda_joint7", "position_panda_finger_joint1", "position_panda_finger_joint2",
+        "velocity_panda_joint1", "velocity_panda_joint2", "velocity_panda_joint3", "velocity_panda_joint4", "velocity_panda_joint5", "velocity_panda_joint6", "velocity_panda_joint7", "velocity_panda_finger_joint1", "velocity_panda_finger_joint2",
+        "effort_panda_joint1", "panda_joint2", "effort_panda_joint3", "effort_panda_joint4", "panda_joint5", "effort_panda_joint6", "effort_panda_joint7", "effort_panda_finger_joint1", "effort_panda_finger_joint2",
+        "ee_state_position_x", "ee_state_position_y", "ee_state_position_z", "ee_state_orientation_x", "ee_state_orientation_y", "ee_state_orientation_z", "ee_state_orientation_w"] 
+        
+        T0.to_csv(folder + '/robot_state.csv', header=robot_states_col, index=False)
+        T1.to_csv(folder + '/centroid.csv', header = ["x" ,"y"], index = False)
+
+
+    def read_robot_data(self, robot_joint_data):#, fing_cam):
+            if self.i != self.prev_i:
+                self.prev_i = self.i
+                ee_state = self.move_group.get_current_pose().pose
+                self.robot_states.append([robot_joint_data, ee_state])
+                # self.camera_finger.append(fing_cam)
+
     def get_robot_task_state(self):
         robot_ee_pose = self.move_group.get_current_pose().pose
         return [robot_ee_pose.position.x, robot_ee_pose.position.y, robot_ee_pose.position.z], [robot_ee_pose.orientation.x, robot_ee_pose.orientation.y, robot_ee_pose.orientation.z, robot_ee_pose.orientation.w]
     
+    def create_pose(self, start_position, orientation):
+        pose = PoseStamped()
+        pose.header.frame_id = '/panda_link0'
+        pose.pose.position.x = start_position[0]
+        pose.pose.position.y = start_position[1]
+        pose.pose.position.z = start_position[2]
+
+        pose.pose.orientation.x = orientation[0]
+        pose.pose.orientation.y = orientation[1]
+        pose.pose.orientation.z = orientation[2]
+        pose.pose.orientation.w = orientation[3]
+        return pose
 
 
     def go_home(self):

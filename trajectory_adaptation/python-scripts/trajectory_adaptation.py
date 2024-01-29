@@ -106,7 +106,7 @@ class TrajectoryAdaptation():
 
     def BasisFuncGauss(self, N, h, dt):
         self.T = int(round(1/dt+1))
-        self.Phi = np.zeros((self.t-1,N))
+        self.Phi = np.zeros((self.T-1,N))
         for z in range(0,self.T-1):
             t = z*dt
             self.phi = np.zeros((1, N))
@@ -117,11 +117,31 @@ class TrajectoryAdaptation():
         self.Phi = self.Phi/np.transpose(mat.repmat(np.sum(self.Phi,axis=1),N,1)); #[TxN]   Normalizes the rows of self.Phi such that each row sums to 1.
         return self.Phi #[TxN]
     
+    def gen_opt_traj(self, nom_traj):	
+        self.nom_traj = nom_traj
+        self.num_basis = 4
+        self.Phi_mat = self.BasisFuncGauss(self.num_basis, 0.015, dt=0.1)
+        self.phi_mat_augmented = np.tile(self.Phi_mat, (1, 6)) #create an augmented matrix by repeating the self.Phi_mat matrix horizontally 6 times
+        w0 = np.random.normal(0, 0.1, 18)
+	
+        optimizer_options = {'verbose': 0, 'xtol':1e-08, 'gtol':1e-08,  'maxiter':20, 'disp':False}
+        res = minimize(self.obj_func, w0, method='trust-constr', options=optimizer_options, jac=self.obj_jac)
+		#obj_func specify teh jacobian(gradient) of the objective function
+		
+		# optimizer_options = {'maxiter':10, 'disp':True}
+		# res = minimize(self.obj_func, w0, method='nelder-mead', options={'maxiter':10, 'disp':True})
+		
+        self.opt_execution_time[self.time_step] = res.execution_time
+        self.optimality[self.time_step] = res.optimality
+        self.num_itr[self.time_step] = res.nit
+        self.constr_violation[self.time_step] = res.constr_violation
+		
+        return res.x
 
 
     def obj_func(self, w):
-            a = 0
-            return a
+            ref_point = 
+            return np.mean((np.matmul(self.phi_mat_augmented,w)-ref_point)**2)
     
     def scale_action(self, action):
         for index, min_max_scalar in enumerate(self.robot_min_max_scalar):
@@ -133,12 +153,22 @@ class TrajectoryAdaptation():
     
     
 
-    
-        
+    def compute_trajectory(self):
+        position_seq =  
+        robot_seq  = self.robot_data[self.time_step-10 : self.time_step , : ]
+        action_seq = self.action_data[self.time_step-10 : self.time_step , : ] # shpe: 10x6 <-- i want just 2 or 1 dof
 
+        self.optimal_weight = self.gen_opt_traj(action_seq)
+        self.optimal_weights[self.time_step] = self.optimal_weight
 
+        x = 1
+        y = 1
 
+        self.ref_trajectory[self.time_step, :, 0] = x
+        self.ref_trajectory[self.time_step, :, 1] = y
 
+        x += np.matmul(self.Phi_mat, self. optimal_weight[:3])
+        y += np.matmul(self.Phi_mat, self. optimal_weight[3:6])
 
     def print_rate(self):
             t1 = time.time()
