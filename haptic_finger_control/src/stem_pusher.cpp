@@ -83,30 +83,7 @@ int main(int argc, char** argv) {
         new_pose[13] = 0.5 * a * (time - T) * (time - T) - (0.2 - initial_pose[13]);
       }
 
-      // Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
-      // Eigen::Vector3d position(transform.translation());
-      // Eigen::Matrix3d rotation(transform.rotation());
-      // Eigen::Vector3d euler_angles = rotation.eulerAngles(0, 1, 2);
 
-      // Eulerss euler_angles2;
-      // euler_angles2 = {euler_angles(0), euler_angles(1), euler_angles(2)};
-      // Eigen::Matrix3d rotationMatrix = euler_angles2.toRotationMatrix();
-
-      // if (rot_value == 0){
-      //     euler_angles[1] += 0.0001 * time;
-      // }
-      
-      // new_pose[0] = rotationMatrix(0, 0);
-      // new_pose[1] = rotationMatrix(1, 0);
-      // new_pose[2] = rotationMatrix(2, 0);
-      // new_pose[4] = rotationMatrix(0, 1);
-      // new_pose[5] = rotationMatrix(1, 1);
-      // new_pose[6] = rotationMatrix(2, 1);
-      // new_pose[8] = rotationMatrix(0, 2);
-      // new_pose[9] = rotationMatrix(1, 2);
-      // new_pose[10] = rotationMatrix(2, 2);
-
-      // std::cout << rotationMatrix(1, 2) << std::endl;
       y_save.push_back(new_pose[13]);
 
       ros::spinOnce();
