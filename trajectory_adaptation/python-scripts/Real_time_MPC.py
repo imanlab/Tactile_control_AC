@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 import message_filters
 from std_msgs.msg import Float64MultiArray
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, Point
 import matplotlib.pyplot as plt
 
 #Optimizer
@@ -64,7 +64,7 @@ class RobotController():
 
         
     def init_sub(self):
-        self.optimal_traj_pub = rospy.Publisher('/optimal_traj', Float64MultiArray, queue_size=11)
+        self.optimal_traj_pub = rospy.Publisher('/optimal_traj', Point, queue_size=11)
         # robot_data = message_filters.Subscriber('/robot_state',Float64MultiArray, queue_size = 11)
         # self.robot_subscriber = [robot_data]
         # ts_sync = message_filters.ApproximateTimeSynchronizer(self.robot_subscriber, queue_size=1, slop=0.1, allow_headerless=True)
@@ -114,7 +114,7 @@ class RobotController():
         self.opt_theta = self.gen_opt_traj()
         self.optimal_trajectory = self.circular_to_cartesian(self.opt_theta) 
 
-        traj_msg = Float64MultiArray()
+        traj_msg = Point()
         traj_msg.data = self.optimal_trajectory[1]
         self.optimal_traj_pub.publish(traj_msg)
 
