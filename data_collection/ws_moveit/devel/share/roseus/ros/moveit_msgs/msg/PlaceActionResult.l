@@ -1,1 +1,0 @@
-/home/gabriele/ws_moveit/devel/.private/moveit_msgs/share/roseus/ros/moveit_msgs/msg/PlaceActionResult.l
