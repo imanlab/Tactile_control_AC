@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 import message_filters
 from std_msgs.msg import Float64MultiArray
-from geometry_msgs.msg import Pose, Point
+from geometry_msgs.msg import Pose
 import matplotlib.pyplot as plt
 
 #Optimizer
@@ -39,97 +39,106 @@ class RobotController():
         self.prev_time_step = 0
         self.tau = 0
         self.E = 0
-        self.x0 = 0.6436084411618019  #1500
-        self.y0 = -0.0510171173408605 #500
-        self.z0 = 0.8173126349141415 #unknown
-        self.x_f = 0.5496180752549058#1400
-        self.y_f = -0.21016977052503594#300
-        self.z_f = 0.8173126349141415 #same as initial
+        self.x0 = 1500
+        self.y0 = 500
+        self.x_f = 1400
+        self.y_f = 300
         self.num_int_points = 10
         self.trajectory_history = []
         self.cost_history = []
-        
-        self.target_position = np.array([self.x_f, self.y_f, self.z_f])
+        self.initial_position = np.array([self.x0, self.y0])
+        self.target_position = np.array([self.x_f, self.y_f])
         #self.d = 2
-        #self.d = np.linalg.norm(self.target_position - self.initial_position) / (self.num_int_points+1)
+        self.d = np.linalg.norm(self.target_position - self.initial_position) / (self.num_int_points+1)
         self.points = []
-        self.ee_coordinates = []
-        self.optimal_trajectory_history = []
+
+        #rospy.init_node('listener', anonymous=True, disable_signals=True)
+
         self.init_sub()
-        self.control_loop()
-        #self.plot_trajectory()
-        #print(self.optimal_trajectory[0])
+        # self.control_loop()
+        self.compute_trajectory()
+        self.opt_theta = self.gen_opt_traj()
+        self.optimized_trajectory = self.circular_to_cartesian(self.opt_theta) 
+        self.plot_trajectory()
+        print(self.optimal_trajectory[1])
+
         
     def init_sub(self):
         rospy.init_node('optimizer', anonymous=True, disable_signals=True)
-        self.optimal_traj_pub = rospy.Publisher('/opt_traj', Point, queue_size=11)
+        self.optimal_traj_pub = rospy.Publisher('/optimal_traj', Float64MultiArray, queue_size=11)
+        # robot_data = message_filters.Subscriber('/robot_state',Float64MultiArray, queue_size = 11)
+        # self.robot_subscriber = [robot_data]
+        # ts_sync = message_filters.ApproximateTimeSynchronizer(self.robot_subscriber, queue_size=1, slop=0.1, allow_headerless=True)
+        # ts_sync.registerCallback(self.sub_cb)
 
-    def callback(self, ee_state):
-        ee_state = self.move_group.get_current_pose().pose
-        self.ee_coordinates.append(ee_state)
 
     def cost_callback(self, theta_values):    #usefull for tracking the cost value during the optimization
         points = self.circular_to_cartesian(theta_values)
-        cost = self.calculate_cost(points)
+        cost = self.calculate_cost(points, self.target_position)
         self.trajectory_history.append(points.copy())
         self.cost_history.append(cost)
     
     def gen_opt_traj(self):
+        # Initial guess for theta values
+        #initial_guess = np.random.uniform(0, 2*np.pi, self.num_points - 1)
         initial_theta = np.zeros(self.num_int_points + 1)
+        # Bounds for the theta values (individual bounds for each element)
         bounds = None
+        # Run the optimization with the callback function
         result = minimize(self.obj_func, initial_theta, bounds=bounds, callback=self.cost_callback, method='BFGS')
+        # Extract the optimized theta values
         optimal_theta = result.x
         return optimal_theta
 
     def obj_func(self, theta_values):
-        points = self.circular_to_cartesian(theta_values)
-        cost = self.calculate_cost(points)
+        self.points = self.circular_to_cartesian(theta_values)
+        cost = self.calculate_cost(self.points, self.target_position)
         return cost
        
-    def calculate_cost(self, points):
-        return np.sum(np.linalg.norm(points - self.target_position, axis=1)**2)
+    def calculate_cost(self, points, target_position):
+        return np.sum(np.linalg.norm(points - target_position, axis=1)**2)
 
-    def circular_to_cartesian(self,theta_values): 
+    def circular_to_cartesian(self,theta_values):
         x = np.zeros(self.num_int_points+2)
         y = np.zeros(self.num_int_points+2)
-        z = np.zeros(self.num_int_points+2)
         for i in range(self.num_int_points+2):
             if i == 0:
                 x[i] = self.initial_position[0]
                 y[i] = self.initial_position[1]
-                z[i] = self.initial_position[2]
-            
             else:
                 x[i] = x[i-1] + self.d * np.cos(theta_values[i-1])
                 y[i] = y[i-1] + self.d * np.sin(theta_values[i-1])
-                z[i] = z[i-1]
            
-        return np.column_stack((x, y, z))
+        return np.column_stack((x, y))
 
-    def pub_goal_pose(self):
-        traj_msg = Point()
-        traj_msg.x = self.optimal_trajectory[1,0]
-        traj_msg.y = self.optimal_trajectory[1,1]
-        traj_msg.z = self.optimal_trajectory[1,2] 
+    def compute_trajectory(self):
+        self.opt_theta = self.gen_opt_traj()
+        self.optimal_trajectory = self.circular_to_cartesian(self.opt_theta) 
+
+        traj_msg = Float64MultiArray()
+        traj_msg.data = self.optimal_trajectory[1]
         self.optimal_traj_pub.publish(traj_msg)
 
     def control_loop(self):
 
-        start_position = np.array([self.x0, self.y0, self.z0])
-        self.d = np.linalg.norm(self.target_position - start_position) / (10*(self.num_int_points+1))
-        for k in range(1000000):
-            if k == 0:
-                self.initial_position = start_position
-            self.opt_theta = self.gen_opt_traj()
-            self.optimal_trajectory = self.circular_to_cartesian(self.opt_theta)
-            self.initial_position = self.optimal_trajectory[1]
-         
-            self.pub_goal_pose()
+        rate = rospy.Rate(50)
+    
+        while not rospy.is_shutdown():
+            
+            try:
+                if self.time_step == 0:
+                    self.t0 = time.time()
 
-                
-              
-        
-        
+                if self.stop == 0.0 and self.time_step > 0 and self.time_step > self.prev_time_step:
+                    self.compute_trajectory()
+                elif self.stop == 1.0:
+                    [sub.sub.unregister() for sub in self.robot_subscriber]
+                    break
+
+                rate.sleep()
+            
+            except KeyboardInterrupt:
+                break
 
     def plot_trajectory(self):
         # Plot the trajectory at each step
@@ -151,5 +160,4 @@ class RobotController():
 
 if __name__ == '__main__':
     io = RobotController()
-
-    
+    #io.animate_optimization()
