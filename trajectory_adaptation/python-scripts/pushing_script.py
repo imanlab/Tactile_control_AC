@@ -52,7 +52,7 @@ class RobotPusher():
         self.move_group.set_planning_pipeline_id("pilz_industrial_motion_planner")
         self.goal_pose_sub = rospy.Subscriber("/opt_traj", Point, self.receive_goal_position)
         self.robot_sub = message_filters.Subscriber('/joint_states', JointState)
-
+        self.coord_pub = rospy.Publisher('/cartesian_pose', Pose ,queue_size=1000)
         #self.last_pose_pub = rospy.Publisher('/last_pose', Point, queue_size=11)
         
         self.pushing_orientation = [-0.9238638957839016, 0.3827149349905697, -0.0020559535525728366, 0.0007440814108405214]
@@ -62,11 +62,16 @@ class RobotPusher():
         #other initialization
         self.robot_states = []
         self.goal_pose = Point()
-        print(self.goal_pose)
+        #self.read_cartesian_pose()
    
-    def pushing_actions(self):
+    def init_movement(self):
         self.go_home()
         self.go_push()
+
+    def pushing_actions(self):
+        # self.go_home()
+        # self.go_push()
+
         pilz_pose = MotionPlanRequest()
         pilz_pose.planner_id = "CIRC"
         pilz_pose.group_name = "panda_arm"
@@ -110,24 +115,31 @@ class RobotPusher():
         #TARGET is always equal to None, don't know why
         trajectory = self.move_group.plan(target)
 
-        time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
+        #time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
         self.move_group.go(target, wait=False)
-
+        stop_pose = self.move_group.get_current_pose()
+        print(stop_pose)
 
         
-        #subscribing last position
+        # subscribing last position
         # last_pose = Point()
         # last_pose.data = self.robot_states[8:10]
         # self.last_pose_pub.publish(last_pose)
 
     def read_cartesian_pose(self):
-        ee_state=self.move_group.get_current_pose().pose
-        print(ee_state)
+        ee_state_vec= []
+        while not rospy.is_shutdown():
+            ee_state=self.move_group.get_current_pose().pose
+            ee_state_vec.append(ee_state)
+            self.coord_pub.publish(ee_state)
+        return ee_state_vec
+        
 
     def receive_goal_position(self,goal_pose):
         self.goal_pose.x = goal_pose.x
         self.goal_pose.y = goal_pose.y
         self.goal_pose.z = goal_pose.z
+        self.pushing_actions()
         # print(self.goal_pose)
         # print("----------------")
 
@@ -150,7 +162,14 @@ class RobotPusher():
 
 if __name__ == '__main__':
     robot = RobotPusher()
-    rate = rospy.Rate(30)
-    robot.pushing_actions()
-    rospy.spin()
+    #rate = rospy.Rate(30)   #??
+    #robot.pushing_actions()
+    robot.init_movement()
+    while not rospy.is_shutdown():
+        try:
+            
+            robot.receive_goal_position()
+        except:
+            break
+    rospy.spin()            #??
 

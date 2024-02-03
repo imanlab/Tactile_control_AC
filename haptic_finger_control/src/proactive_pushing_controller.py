@@ -64,7 +64,7 @@ class PushingController:
 		self.final_action_input = np.zeros((500, 15, 6))
 		self.localisation = np.zeros((1000, 1))
 		self.robot_vel_data = np.zeros((1000, 6))
-		self.save_path = "/home/alessandro/tactile_control_ale/src/haptic_finger_control/RT-data/video_single_stem/proactive/001/"   #<---update the last folder
+		self.save_path = "/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/RT-data/video_single_stem/proactive/001/"   #<---update the last folder
 																																	# for every new data collection
 																																	# or experiment		
 
@@ -87,30 +87,30 @@ class PushingController:
 		sync_cb.registerCallback(self.callback)
 	
 	def load_scalers(self):
-		scaler_path = '/home/alessandro/tactile_control_ale/src/haptic_finger_control/scalars'
+		scaler_path = '/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/scalars'
 		self.robot_min_max_scalar = [load(open(scaler_path + '/robot_min_max_scalar_'+feature +'.pkl', 'rb'))\
 															 for feature in ['px', 'py', 'pz', 'ex', 'ey', 'ez']]
 	
 	def load_action_data(self):
 		# self.action_data = np.load("/home/alessandro/tactile_control_ale/src/haptic_finger_control/RT-Data/proactive/robot_pose_new.npy")[:, :6] # linear
-		self.action_data = np.load("/home/alessandro/tactile_control_ale/src/haptic_finger_control/RT-Data/proactive/robot_pose_circular.npy")[:, :6] # circular
+		self.action_data = np.load("/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/RT-Data/proactive/robot_pose_circular.npy")[:, :6] # circular
 	
 	def load_model(self):
 		n_past = 5
 		n_future = 10
-		model_dir = "/home/alessandro/tactile_control_ale/src/haptic_finger_control/src/ATCVP/blacked/"
+		model_dir = "/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/src/ATCVP/blacked/"
 		model_name_save_appendix = "ATCVP_model"
 
 		features = dict([("device", self.device), ("n_past", n_past), ("n_future", n_future), ("model_dir", model_dir),\
 										("model_name_save_appendix", model_name_save_appendix), ("criterion", nn.MSELoss())])
 		self.pred_model = Model(features)
-		self.pred_model.load_state_dict(torch.load("/home/alessandro/tactile_control_ale/src/haptic_finger_control/src/ATCVP/blacked/ATCVP_model", map_location='cpu'))
+		self.pred_model.load_state_dict(torch.load("/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/src/ATCVP/blacked/ATCVP_model", map_location='cpu'))
 		self.pred_model = self.pred_model#.float()
 		self.pred_model.eval()
 
 		self.local_model = localisation_model()
 		self.local_model.load_state_dict(torch.load(\
-									"/home/alessandro/tactile_control_ale/src/haptic_finger_control/force_localisation/dataset/localisation_cnn_crop64.pth"))
+									"/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/force_localisation/dataset/localisation_cnn_crop64.pth"))
 		self.local_model = self.local_model.float()
 		self.local_model.eval()
 		
@@ -130,7 +130,7 @@ class PushingController:
 	
 	def load_openvino(self):
 		self.ie = Core()
-		self.model_onnx = self.ie.read_model(model="/home/alessandro/tactile_control_ale/src/haptic_finger_control/torch2ONNX/ATCVP64crop_onnx.onnx")
+		self.model_onnx = self.ie.read_model(model="/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/torch2ONNX/ATCVP64crop_onnx.onnx")
 		self.compiled_model_onnx = self.ie.compile_model(model=self.model_onnx, device_name="CPU")
 
 		self.output_layer_onnx = self.compiled_model_onnx.output(0)

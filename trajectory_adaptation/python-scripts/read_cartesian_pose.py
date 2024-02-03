@@ -25,13 +25,13 @@ from actionlib_msgs.msg import GoalStatusArray
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from moveit_commander.conversions import pose_to_list
 
-rospy.init_node('leggi_posizione', anonymous = True)
+rospy.init_node('read_pose', anonymous = True)
 ee_state_vec= []
 robot = moveit_commander.RobotCommander()
 scene = moveit_commander.PlanningScene()
 move_group = moveit_commander.MoveGroupCommander("panda_arm")
-coord_pub = rospy.Publisher('/coordinateeeeeeeee', Pose ,queue_size=1000)
-
+coord_pub = rospy.Publisher('/cartesian_pose', Pose ,queue_size=1000)
+rate = rospy.Rate(20)
 while not rospy.is_shutdown():
     ee_state=move_group.get_current_pose().pose
     ee_state_vec.append(ee_state)

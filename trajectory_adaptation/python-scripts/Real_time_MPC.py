@@ -10,6 +10,7 @@ import message_filters
 from std_msgs.msg import Float64MultiArray
 from geometry_msgs.msg import Pose, Point
 import matplotlib.pyplot as plt
+import scipy
 
 #Optimizer
 from scipy.optimize import Bounds
@@ -18,7 +19,7 @@ from scipy.optimize import minimize
 from scipy.optimize import BFGS
 from scipy.optimize import LinearConstraint
 from scipy.optimize import NonlinearConstraint
-from matplotlib.animation import FuncAnimation
+
 
 
 ## Pytorch
@@ -58,7 +59,7 @@ class RobotController():
         self.init_sub()
         self.control_loop()
         #self.plot_trajectory()
-        #print(self.optimal_trajectory[0])
+
         
     def init_sub(self):
         rospy.init_node('optimizer', anonymous=True, disable_signals=True)
@@ -107,11 +108,11 @@ class RobotController():
         return np.column_stack((x, y, z))
 
     def pub_goal_pose(self):
-        traj_msg = Point()
-        traj_msg.x = self.optimal_trajectory[1,0]
-        traj_msg.y = self.optimal_trajectory[1,1]
-        traj_msg.z = self.optimal_trajectory[1,2] 
-        self.optimal_traj_pub.publish(traj_msg)
+        goal_pose = Point()
+        goal_pose.x = self.optimal_trajectory[1,0]
+        goal_pose.y = self.optimal_trajectory[1,1]
+        goal_pose.z = self.optimal_trajectory[1,2] 
+        self.optimal_traj_pub.publish(goal_pose)
 
     def control_loop(self):
 
@@ -119,16 +120,13 @@ class RobotController():
         self.d = np.linalg.norm(self.target_position - start_position) / (10*(self.num_int_points+1))
         for k in range(1000000):
             if k == 0:
-                self.initial_position = start_position
+                self.initial_position = start_position    
             self.opt_theta = self.gen_opt_traj()
             self.optimal_trajectory = self.circular_to_cartesian(self.opt_theta)
             self.initial_position = self.optimal_trajectory[1]
-         
+            print(self.initial_position)
             self.pub_goal_pose()
 
-                
-              
-        
         
 
     def plot_trajectory(self):
