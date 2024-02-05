@@ -74,8 +74,9 @@ class PushingController:
 		self.load_model()
 		# self.load_openvino()
 		self.load_scalers()
+		print("caricati i scaler")
 		self.load_action_data()
-
+		print("caricati i action data")
 		self.control_loop()
 	
 	def init_sub(self):
@@ -295,4 +296,4 @@ class PushingController:
 
 if __name__ == '__main__':
 	pc = PushingController()
-	pc.save_data()
+	#pc.save_data()

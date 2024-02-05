@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(haptic_finger_control)
+project(haptic_finger)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -12,7 +12,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
-
 )
 
 ## System dependencies are found with CMake's conventions
@@ -168,7 +167,7 @@ foreach(executable_file ${EXECUTABLE_FILES})
 	add_executable(${executable_file} ${CMAKE_CURRENT_SOURCE_DIR}/src/${executable_file}.cpp)
 	target_link_libraries(${executable_file} Franka::Franka examples_common Eigen3::Eigen3 ${catkin_LIBRARIES})
 
-	#target_link_libraries(${PROJECT_NAME} PRIVATE Franka::Franka /home/alessandro/libfranka/build/HelloLibfranka/libexamples_common.a Eigen3::Eigen3 ${Boost_LIBRARIES})
+	
 endforeach()
 
 

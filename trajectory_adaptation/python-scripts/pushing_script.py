@@ -63,10 +63,14 @@ class RobotPusher():
         self.robot_states = []
         self.goal_pose = Point()
         #self.read_cartesian_pose()
-   
+        self.init_movement()
+        self.receive_goal_position()
+
     def init_movement(self):
         self.go_home()
+        print("i'm at home")
         self.go_push()
+        print("ready to push the berry")
 
     def pushing_actions(self):
         # self.go_home()
@@ -118,6 +122,7 @@ class RobotPusher():
         #time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
         self.move_group.go(target, wait=False)
         stop_pose = self.move_group.get_current_pose()
+        print("--------------STOP POSE-------------")
         print(stop_pose)
 
         
@@ -139,7 +144,8 @@ class RobotPusher():
         self.goal_pose.x = goal_pose.x
         self.goal_pose.y = goal_pose.y
         self.goal_pose.z = goal_pose.z
-        self.pushing_actions()
+        print(self.goal_pose)
+        #self.pushing_actions()
         # print(self.goal_pose)
         # print("----------------")
 
@@ -162,14 +168,8 @@ class RobotPusher():
 
 if __name__ == '__main__':
     robot = RobotPusher()
-    #rate = rospy.Rate(30)   #??
     #robot.pushing_actions()
-    robot.init_movement()
-    while not rospy.is_shutdown():
-        try:
-            
-            robot.receive_goal_position()
-        except:
-            break
-    rospy.spin()            #??
+    #robot.init_movement()
+    #robot.receive_goal_position()
+
 

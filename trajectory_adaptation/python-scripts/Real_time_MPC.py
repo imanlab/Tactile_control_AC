@@ -40,15 +40,16 @@ class RobotController():
         self.prev_time_step = 0
         self.tau = 0
         self.E = 0
-        self.x0 = 0.6436084411618019  #1500
-        self.y0 = -0.0510171173408605 #500
-        self.z0 = 0.8173126349141415 #unknown
-        self.x_f = 0.5496180752549058#1400
-        self.y_f = -0.21016977052503594#300
+        self.x0 = 0.6436084411618019     #1500
+        self.y0 = -0.0510171173408605    #500
+        self.z0 = 0.8173126349141415    #unknown
+        self.x_f = 0.5496180752549058   #1400
+        self.y_f = -0.21016977052503594 #300
         self.z_f = 0.8173126349141415 #same as initial
         self.num_int_points = 10
         self.trajectory_history = []
         self.cost_history = []
+        self.stop = False
         
         self.target_position = np.array([self.x_f, self.y_f, self.z_f])
         #self.d = 2
@@ -57,7 +58,7 @@ class RobotController():
         self.ee_coordinates = []
         self.optimal_trajectory_history = []
         self.init_sub()
-        self.control_loop()
+        #self.loop()
         #self.plot_trajectory()
 
         
@@ -114,20 +115,45 @@ class RobotController():
         goal_pose.z = self.optimal_trajectory[1,2] 
         self.optimal_traj_pub.publish(goal_pose)
 
-    def control_loop(self):
-
+    def loop(self):
+        rate = rospy.Rate(1)
         start_position = np.array([self.x0, self.y0, self.z0])
         self.d = np.linalg.norm(self.target_position - start_position) / (10*(self.num_int_points+1))
-        for k in range(1000000):
-            if k == 0:
-                self.initial_position = start_position    
-            self.opt_theta = self.gen_opt_traj()
-            self.optimal_trajectory = self.circular_to_cartesian(self.opt_theta)
-            self.initial_position = self.optimal_trajectory[1]
-            print(self.initial_position)
-            self.pub_goal_pose()
+        self.initial_position = start_position
+    
+        while not rospy.is_shutdown():
+            try:
+                while True:
+                        
+                    self.opt_theta = self.gen_opt_traj()
+                    self.optimal_trajectory = self.circular_to_cartesian(self.opt_theta)
+                    self.initial_position = self.optimal_trajectory[1]
+                    print(self.initial_position)
+                    self.pub_goal_pose()
 
-        
+                    if np.all(abs(self.initial_position - self.target_position) < 0.02):
+                        self.stop = True
+                        break				
+
+                rate.sleep()
+			
+            except KeyboardInterrupt:
+                break
+
+            except self.stop == True:
+                break
+
+        # start_position = np.array([self.x0, self.y0, self.z0])
+        # self.d = np.linalg.norm(self.target_position - start_position) / (10*(self.num_int_points+1))
+        # for k in range(1000000):
+        #     if k == 0:
+        #         self.initial_position = start_position    
+        #     self.opt_theta = self.gen_opt_traj()
+        #     self.optimal_trajectory = self.circular_to_cartesian(self.opt_theta)
+        #     self.initial_position = self.optimal_trajectory[1]
+        #     print(self.initial_position)
+        #     self.pub_goal_pose()
+
 
     def plot_trajectory(self):
         # Plot the trajectory at each step
@@ -149,5 +175,6 @@ class RobotController():
 
 if __name__ == '__main__':
     io = RobotController()
+    io.loop()
 
     

@@ -12,7 +12,7 @@
 
 
 float stem_pose = 0.0;
-void wrist_rot_cb(const std_msgs::Float64MultiArray& rotation)
+void wrist_rot_cb(const std_msgs::Float64MultiArray& rotation) 
 {
   stem_pose = rotation.data[0];
 }

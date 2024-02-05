@@ -54,7 +54,7 @@ def main():
     
     cx = 0.0
     cy = 0.0
-    cap = cv2.VideoCapture(4)
+    cap = cv2.VideoCapture(5)
     while not rospy.is_shutdown():
         while True:
             ret, frame = cap.read()
@@ -65,7 +65,7 @@ def main():
             mask, frame = color_filtering(frame)
 
             cx, cy = detection_object(mask,frame)
-            #print(cx,cy)
+            print(cx,cy)
             publish_centroid(cx, cy)
 
 

@@ -31,11 +31,12 @@ robot = moveit_commander.RobotCommander()
 scene = moveit_commander.PlanningScene()
 move_group = moveit_commander.MoveGroupCommander("panda_arm")
 coord_pub = rospy.Publisher('/cartesian_pose', Pose ,queue_size=1000)
-rate = rospy.Rate(20)
+rate = rospy.Rate(2)
 while not rospy.is_shutdown():
     ee_state=move_group.get_current_pose().pose
     ee_state_vec.append(ee_state)
     coord_pub.publish(ee_state)
+    rate.sleep()
 print(ee_state_vec)
 
 
