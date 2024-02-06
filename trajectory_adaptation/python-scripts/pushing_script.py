@@ -53,6 +53,7 @@ class RobotPusher():
         self.goal_pose_sub = rospy.Subscriber("/opt_traj", Point, self.receive_goal_position)
         self.robot_sub = message_filters.Subscriber('/joint_states', JointState)
         self.coord_pub = rospy.Publisher('/cartesian_pose', Pose ,queue_size=1000)
+        self.flag_pub = rospy.Publisher('/flag', Bool ,queue_size=1)
         #self.last_pose_pub = rospy.Publisher('/last_pose', Point, queue_size=11)
         
         self.pushing_orientation = [-0.9238638957839016, 0.3827149349905697, -0.0020559535525728366, 0.0007440814108405214]
@@ -62,20 +63,34 @@ class RobotPusher():
         #other initialization
         self.robot_states = []
         self.goal_pose = Point()
+        self.flag = True
+
         #self.read_cartesian_pose()
         self.init_movement()
-        self.receive_goal_position()
+        self.init_sub()
+        self.control_loop()
+    
+    def init_sub(self):
+        self.activate_flag()
+        self.goal_pose_sub = rospy.Subscriber("/opt_traj", Point, self.receive_goal_position)
+        self.robot_sub = message_filters.Subscriber('/joint_states', JointState)
+        
 
     def init_movement(self):
         self.go_home()
         print("i'm at home")
         self.go_push()
         print("ready to push the berry")
+        
+    
+    def activate_flag(self):
+        # True = compute a new trajecory and send to me
+        self.flag_pub.publish(Bool(True))
+    def deactivate_flag(self):
+        #False = Wait, I'm moving!
+        self.flag_pub.publish(Bool(False))
 
     def pushing_actions(self):
-        # self.go_home()
-        # self.go_push()
-
         pilz_pose = MotionPlanRequest()
         pilz_pose.planner_id = "CIRC"
         pilz_pose.group_name = "panda_arm"
@@ -88,7 +103,7 @@ class RobotPusher():
         pose = self.move_group.get_current_pose()
 
         print("=========")
-        print(pose)
+        print(pose.pose.position)
         print("--------")
         
         pose.pose.position.x = self.goal_pose.x
@@ -99,14 +114,12 @@ class RobotPusher():
         pose.pose.orientation.z = -0.7099896847609536
         pose.pose.orientation.w = 0.217380118547494
 
-        print(pose)
+        print(pose.pose.position)
         print("==========")
 
         constraint = Constraints()
         position_constraints_pose = PositionConstraint()
-
         position_constraints_pose.header = pose.header
-
         position_constraints_pose.constraint_region.primitives = SolidPrimitive()
         position_constraints_pose.constraint_region.primitives.type = 1
         position_constraints_pose.constraint_region.primitives.dimensions = [0.1, 0.1, 0.1]
@@ -116,17 +129,17 @@ class RobotPusher():
         pilz_pose.goal_constraints = constraint
 
         target = self.move_group.set_pose_target(pose)
-        #TARGET is always equal to None, don't know why
         trajectory = self.move_group.plan(target)
 
         #time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
         self.move_group.go(target, wait=False)
+
+        self.activate_flag()
         stop_pose = self.move_group.get_current_pose()
         print("--------------STOP POSE-------------")
         print(stop_pose)
 
-        
-        # subscribing last position
+        # ---- subscribing last position ----
         # last_pose = Point()
         # last_pose.data = self.robot_states[8:10]
         # self.last_pose_pub.publish(last_pose)
@@ -138,18 +151,17 @@ class RobotPusher():
             ee_state_vec.append(ee_state)
             self.coord_pub.publish(ee_state)
         return ee_state_vec
-        
 
     def receive_goal_position(self,goal_pose):
         self.goal_pose.x = goal_pose.x
         self.goal_pose.y = goal_pose.y
         self.goal_pose.z = goal_pose.z
-        print(self.goal_pose)
-        #self.pushing_actions()
-        # print(self.goal_pose)
-        # print("----------------")
-
-   
+        self.deactivate_flag()
+        self.pushing_actions()
+            
+    
+    def control_loop(self):
+        rospy.spin()
         
 
     def read_robot_data(self):
@@ -168,8 +180,6 @@ class RobotPusher():
 
 if __name__ == '__main__':
     robot = RobotPusher()
-    #robot.pushing_actions()
-    #robot.init_movement()
-    #robot.receive_goal_position()
+    
 
 

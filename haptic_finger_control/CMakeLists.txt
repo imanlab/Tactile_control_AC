@@ -152,13 +152,13 @@ if(STRICT)
 add_compile_options(-Werror)
 endif()
 
-# target_link_libraries(examples_common PUBLIC Franka::Franka Eigen3::Eigen3)
+link_directories(/home/alessandro/libfranka/build/examples)
 
 
 
 # file to compile
 set(EXECUTABLE_FILES
-stem_pusher
+# stem_pusher
 stem_pusher_vel
 )
 
@@ -166,7 +166,6 @@ stem_pusher_vel
 foreach(executable_file ${EXECUTABLE_FILES})
 	add_executable(${executable_file} ${CMAKE_CURRENT_SOURCE_DIR}/src/${executable_file}.cpp)
 	target_link_libraries(${executable_file} Franka::Franka examples_common Eigen3::Eigen3 ${catkin_LIBRARIES})
-
 	
 endforeach()
 

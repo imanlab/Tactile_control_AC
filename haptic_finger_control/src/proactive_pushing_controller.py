@@ -72,12 +72,13 @@ class PushingController:
 		self.rot_publisher = rospy.Publisher('/stem_pose', Float64MultiArray, queue_size=1)
 		self.init_sub()
 		self.load_model()
-		# self.load_openvino()
+		self.load_openvino()   #################################### <-----------
 		self.load_scalers()
-		print("caricati i scaler")
+		print("-scaler loaded")
 		self.load_action_data()
-		print("caricati i action data")
+		print("--action data loaded")
 		self.control_loop()
+		print("---control loop started")
 	
 	def init_sub(self):
 		robot_sub = message_filters.Subscriber('/robot_pose', Float64MultiArray)
@@ -131,7 +132,8 @@ class PushingController:
 	
 	def load_openvino(self):
 		self.ie = Core()
-		self.model_onnx = self.ie.read_model(model="/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/torch2ONNX/ATCVP64crop_onnx.onnx")
+		# self.model_onnx = self.ie.read_model(model="/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/torch2ONNX/ATCVP64crop_onnx.onnx")   ORIGINAL
+		self.model_onnx = self.ie.read_model(model="/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/torch2ONNX/ATCVP64.onnx")
 		self.compiled_model_onnx = self.ie.compile_model(model=self.model_onnx, device_name="CPU")
 
 		self.output_layer_onnx = self.compiled_model_onnx.output(0)
