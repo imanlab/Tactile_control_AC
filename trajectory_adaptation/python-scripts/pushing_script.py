@@ -70,7 +70,7 @@ class RobotPusher():
         self.flag = True
 
         #self.read_cartesian_pose()
-        self.init_movement()
+        #self.init_movement()
         self.init_sub()
         self.control_loop()
     
@@ -180,6 +180,7 @@ class RobotPusher():
 
     def get_robot_pose(self):
         current_pose = self.move_group.get_current_pose().pose
+        print(current_pose)
         return [current_pose.position.x, current_pose.position.y, current_pose.position.z,
                 current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z, current_pose.orientation.w]
     
@@ -221,3 +222,4 @@ class RobotPusher():
 if __name__ == '__main__':
     rospy.init_node('pushing_action', anonymous=True)
     robot = RobotPusher()
+ 
