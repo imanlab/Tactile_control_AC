@@ -7,6 +7,7 @@ import math
 import rospy
 import random
 import datetime
+import std_msgs.msg
 import message_filters
 import moveit_msgs.msg
 import moveit_commander
@@ -17,16 +18,19 @@ import pandas as pd
 
 from math import pi
 from cv_bridge import CvBridge
-from std_msgs.msg import String, Bool, Int16MultiArray
+from std_msgs.msg import String, Bool, Int16MultiArray, Float64MultiArray
 from shape_msgs.msg import SolidPrimitive
 from sensor_msgs.msg import JointState, Image
 from moveit_msgs.msg import CollisionObject, DisplayTrajectory, MotionPlanRequest, Constraints, PositionConstraint, JointConstraint
-from geometry_msgs.msg import PoseStamped, Pose, Point
+from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from actionlib_msgs.msg import GoalStatusArray
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 class RobotPusher():
     def __init__(self):
+        self.previous_pose = None
+        self.previous_time = rospy.Time.now()
+
         #super(RobotPusher, self).__init__(sys.argv)
         moveit_commander.roscpp_initialize(sys.argv)
         rospy.init_node('pushing_action', anonymous=True)
@@ -55,6 +59,8 @@ class RobotPusher():
         self.coord_pub = rospy.Publisher('/cartesian_pose', Pose ,queue_size=1000)
         self.flag_pub = rospy.Publisher('/flag', Bool ,queue_size=1)
         #self.last_pose_pub = rospy.Publisher('/last_pose', Point, queue_size=11)
+        self.robot_pose_pub = rospy.Publisher('robot_pose', std_msgs.msg.Float64MultiArray, queue_size=1000)
+        self.robot_vel_pub = rospy.Publisher('robot_vel', std_msgs.msg.Float64MultiArray, queue_size=1000)
         
         self.pushing_orientation = [-0.9238638957839016, 0.3827149349905697, -0.0020559535525728366, 0.0007440814108405214]
         self.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"] 
@@ -177,6 +183,46 @@ class RobotPusher():
         self.move_group.set_planner_id("PTP")
         # self.move_group.go(self.target_pose, wait=True)
         self.move_group.go(self.joint_push, wait=True)
+
+    def get_robot_pose(self):
+        current_pose = self.move_group.get_current_pose().pose
+        return [current_pose.position.x, current_pose.position.y, current_pose.position.z,
+                current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z, current_pose.orientation.w]
+    
+    def get_robot_velocity(self):
+        current_pose = self.move_group.get_current_pose().pose
+        current_time = rospy.Time.now()
+
+        if self.previous_pose is None:
+            self.previous_pose = current_pose
+            self.previous_time = current_time
+            return [0, 0, 0]
+
+        time_diff = (current_time - self.previous_time).to_sec()
+
+        if time_diff > 0:
+            velocity = [(current_pose.position.x - self.previous_pose.position.x) / time_diff,
+                        (current_pose.position.y - self.previous_pose.position.y) / time_diff,
+                        (current_pose.position.z - self.previous_pose.position.z) / time_diff]
+        else:
+            velocity = [0, 0, 0]
+
+        self.previous_pose = current_pose
+        self.previous_time = current_time
+
+        return velocity
+
+    def publish_robot_pose(self):
+        pose_msg = std_msgs.msg.Float64MultiArray()
+        pose_data = self.get_robot_pose()
+        pose_msg.data = pose_data
+        self.robot_pose_pub.publish(pose_msg)
+    
+    def publish_robot_velocity(self):
+        vel_msg = std_msgs.msg.Float64MultiArray()
+        vel_data = self.get_robot_velocity()
+        vel_msg.data = vel_data
+        self.robot_vel_pub.publish(vel_msg)
 
 if __name__ == '__main__':
     robot = RobotPusher()
