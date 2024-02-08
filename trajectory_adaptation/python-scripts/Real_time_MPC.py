@@ -50,29 +50,29 @@ class RobotController():
         self.stop = False
         self.goal_pose = Point()
         self.target_position = np.array([self.x_f, self.y_f, self.z_f])
+        self.target_position_point = Point(self.x_f, self.y_f, self.z_f)
         self.points = []
         self.ee_coordinates = []
         self.optimal_trajectory_history = []
-        self.start_position = np.array([self.x0, self.y0, self.z0])
-        self.d = np.linalg.norm(self.target_position - self.start_position) / (10*(self.num_int_points+1))
+        self.start_position = Point(self.x0, self.y0, self.z0)
+        # self.d = np.linalg.norm(self.target_position - self.start_position) / (self.num_int_points+1)
+        self.d = 0.01
         self.initial_position = self.start_position
     
         self.init_sub()
-        self.loop()
+        #self.loop()
         #self.plot_trajectory()
 
         
     def init_sub(self):
         rospy.init_node('optimizer', anonymous=True, disable_signals=True)
         self.flag_sub = rospy.Subscriber("/flag", Bool, self.flag)
-        self.optimal_traj_pub = rospy.Publisher('/opt_traj', Point,queue_size=100)
+        self.optimal_traj_pub = rospy.Publisher('/opt_traj', Point, queue_size=100)
+        self.last_pose_sub = rospy.Subscriber('/last_pose', Point, self.callback )
 
    
-    
-
-    def callback(self, ee_state):
-            ee_state = self.move_group.get_current_pose().pose
-            self.ee_coordinates.append(ee_state)
+    def callback(self, current_position):
+        self.initial_position = current_position
     
     def cost_callback(self, theta_values):    #usefull for tracking the cost value during the optimization
         points = self.circular_to_cartesian(theta_values)
@@ -101,9 +101,12 @@ class RobotController():
         z = np.zeros(self.num_int_points+2)
         for i in range(self.num_int_points+2):
             if i == 0:
-                x[i] = self.initial_position[0]
-                y[i] = self.initial_position[1]
-                z[i] = self.initial_position[2]
+                # x[i] = self.initial_position[0]
+                # y[i] = self.initial_position[1]
+                # z[i] = self.initial_position[2]
+                x[i] = self.initial_position.x
+                y[i] = self.initial_position.y
+                z[i] = self.initial_position.z
             
             else:
                 x[i] = x[i-1] + self.d * np.cos(theta_values[i-1])
@@ -113,6 +116,7 @@ class RobotController():
         return np.column_stack((x, y, z))
     
     def flag(self, msg):
+            print(msg.data)
             if msg.data == True:
                 self.loop()
 
@@ -120,18 +124,19 @@ class RobotController():
         
         self.goal_pose.x = self.optimal_trajectory[1,0]
         self.goal_pose.y = self.optimal_trajectory[1,1]
-        self.goal_pose.z = self.optimal_trajectory[1,2] 
+        self.goal_pose.z = self.optimal_trajectory[1,2]
         self.optimal_traj_pub.publish(self.goal_pose)
 
     def loop(self):
-
+        
         self.opt_theta = self.gen_opt_traj()
         self.optimal_trajectory = self.circular_to_cartesian(self.opt_theta)
-        self.initial_position = self.optimal_trajectory[1]
+        #self.initial_position = self.optimal_trajectory[1]
+        initial_position_array = np.array([self.initial_position.x, self.initial_position.y, self.initial_position.z])
         print(self.initial_position)
         self.pub_goal_pose()
-
-        if np.all(abs(self.initial_position - self.target_position) < 0.002):
+        print("loop executed, waiting for flag to be True again")
+        if np.all(abs(initial_position_array - self.target_position) < 0.002):
             self.stop = True
                     				
 
@@ -155,6 +160,7 @@ class RobotController():
 
 if __name__ == '__main__':
     io = RobotController()
+    rospy.spin()
 
 
     

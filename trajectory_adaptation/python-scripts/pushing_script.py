@@ -52,7 +52,7 @@ class RobotPusher():
         self.move_group.set_planning_pipeline_id("pilz_industrial_motion_planner")
         self.goal_pose_sub = rospy.Subscriber("/opt_traj", Point, self.receive_goal_position)
         self.robot_sub = message_filters.Subscriber('/joint_states', JointState)
-        self.coord_pub = rospy.Publisher('/cartesian_pose', Pose ,queue_size=1000)
+        self.last_pose_pub = rospy.Publisher('/last_pose', Point ,queue_size=1000)
         self.flag_pub = rospy.Publisher('/flag', Bool ,queue_size=1)
         #self.last_pose_pub = rospy.Publisher('/last_pose', Point, queue_size=11)
         
@@ -63,7 +63,6 @@ class RobotPusher():
         #other initialization
         self.robot_states = []
         self.goal_pose = Point()
-        self.flag = True
 
         #self.read_cartesian_pose()
         self.init_movement()
@@ -75,7 +74,6 @@ class RobotPusher():
         self.goal_pose_sub = rospy.Subscriber("/opt_traj", Point, self.receive_goal_position)
         self.robot_sub = message_filters.Subscriber('/joint_states', JointState)
         
-
     def init_movement(self):
         self.go_home()
         print("i'm at home")
@@ -86,15 +84,18 @@ class RobotPusher():
     def activate_flag(self):
         # True = compute a new trajecory and send to me
         self.flag_pub.publish(Bool(True))
+        self.flag = True
+
     def deactivate_flag(self):
         #False = Wait, I'm moving!
         self.flag_pub.publish(Bool(False))
+        self.flag = False
 
     def pushing_actions(self):
         pilz_pose = MotionPlanRequest()
-        pilz_pose.planner_id = "CIRC"
+        pilz_pose.planner_id = "PTP"
         pilz_pose.group_name = "panda_arm"
-        pilz_pose.max_velocity_scaling_factor = 0.2
+        pilz_pose.max_velocity_scaling_factor = 0.05
         pilz_pose.max_acceleration_scaling_factor = 0.05
         pilz_pose.start_state.joint_state.name = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"] 
         pilz_pose.start_state.joint_state.position = self.move_group.get_current_joint_values()
@@ -134,15 +135,19 @@ class RobotPusher():
         #time_for_trajectory = float(str(trajectory[1].joint_trajectory.points[-1].time_from_start.secs) + "." +str(trajectory[1].joint_trajectory.points[-1].time_from_start.nsecs))
         self.move_group.go(target, wait=False)
 
-        self.activate_flag()
+        #self.activate_flag()
         stop_pose = self.move_group.get_current_pose()
-        print("--------------STOP POSE-------------")
-        print(stop_pose)
-
-        # ---- subscribing last position ----
-        # last_pose = Point()
-        # last_pose.data = self.robot_states[8:10]
-        # self.last_pose_pub.publish(last_pose)
+        print("         STOP POSE         ")
+        print(stop_pose.pose.position)
+        # print(f"----- {self.flag} -------")
+        # print("Proceding activating the flag")
+        # self.activate_flag()
+        # print(f"----- {self.flag} -------")
+        # ---- subscribing last position ---- 
+        last_pose = Point()
+        last_pose = stop_pose.pose.position
+        self.last_pose_pub.publish(last_pose)
+        self.activate_flag()
 
     def read_cartesian_pose(self):
         ee_state_vec= []
@@ -180,6 +185,7 @@ class RobotPusher():
 
 if __name__ == '__main__':
     robot = RobotPusher()
+    
     
 
 

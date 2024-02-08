@@ -31,7 +31,8 @@ int main(int argc, char** argv) {
     // First move the robot to a suitable joint configuration
     // std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
     // std::array<double, 7> q_goal = {{0.14360167152468625, 0.1753777056788718, -0.2196985128072391, -1.365035858023108, -0.15087520535954108, 3.1017061897913636, -2.018819763140546}};
-    std::array<double, 7> q_goal = {{-0.00635813,0.0372822,-0.0373876,-1.30535,0.0145356,2.85452,0.787199}}; // strawberry stem
+    //std::array<double, 7> q_goal = {{-0.00635813,0.0372822,-0.0373876,-1.30535,0.0145356,2.85452,0.787199}}; // strawberry stem
+    std::array<double, 7> q_goal = {{-0.01827050,0.0192672,-0.0962863,-1.61090,0.0573406,3.17315,0.7916728}}; //alessandro_pose
     // std::array<double, 7> q_goal = {{0.000189747,-0.348658,-0.0224457,-1.67147,-0.0154906,2.95908,0.788193}}; // behind stem to avoid contact
     MotionGenerator motion_generator(0.5, q_goal);
     robot.control(motion_generator);

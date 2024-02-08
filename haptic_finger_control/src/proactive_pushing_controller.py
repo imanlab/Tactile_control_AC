@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 import cv2
 import time
+import os
 import rospy
 import torch
 import numpy as np
@@ -15,6 +16,7 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Float64MultiArray
 # import intel_extension_for_pytorch as ipex
 from scipy.spatial.transform import Rotation as R
+#from PIL import Image
 
 
 from ATCVP.ATCVP import Model
@@ -72,7 +74,7 @@ class PushingController:
 		self.rot_publisher = rospy.Publisher('/stem_pose', Float64MultiArray, queue_size=1)
 		self.init_sub()
 		self.load_model()
-		self.load_openvino()   #################################### <-----------
+		#self.load_openvino()   #################################### <-----------
 		self.load_scalers()
 		print("-scaler loaded")
 		self.load_action_data()
@@ -81,6 +83,7 @@ class PushingController:
 		print("---control loop started")
 	
 	def init_sub(self):
+		print(cv2.__version__)
 		robot_sub = message_filters.Subscriber('/robot_pose', Float64MultiArray)
 		robot_vel_sub = message_filters.Subscriber('/robot_vel', Float64MultiArray)
 		haptic_finger_sub = message_filters.Subscriber("/fing_camera/color/image_raw", Image)
@@ -132,8 +135,8 @@ class PushingController:
 	
 	def load_openvino(self):
 		self.ie = Core()
-		# self.model_onnx = self.ie.read_model(model="/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/torch2ONNX/ATCVP64crop_onnx.onnx")   ORIGINAL
-		self.model_onnx = self.ie.read_model(model="/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/torch2ONNX/ATCVP64.onnx")
+		self.model_onnx = self.ie.read_model(model="/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/torch2ONNX/ATCVP64crop_onnx.onnx")   #ORIGINAL
+		#self.model_onnx = self.ie.read_model(model="/home/alessandro/tactile_control_ale_ws/src/haptic_finger_control/torch2ONNX/ATCVP64.onnx")
 		self.compiled_model_onnx = self.ie.compile_model(model=self.model_onnx, device_name="CPU")
 
 		self.output_layer_onnx = self.compiled_model_onnx.output(0)
@@ -179,7 +182,7 @@ class PushingController:
 			cv2.imwrite(self.save_path + "/image/" + str(self.time_step) + ".png", haptic_finger_img)
 			haptic_finger_img = cv2.rectangle(haptic_finger_img,(0,230),(480,480),(0,0,0),-1)
 			self.haptic_finger_data_raw[self.time_step] = haptic_finger_img
-			haptic_finger_img = PILImage.fromarray(haptic_finger_img).resize((64, 64), PILImage.Resampling.LANCZOS)
+			haptic_finger_img = PILImage.fromarray(haptic_finger_img).resize((64, 64), PILImage.LANCZOS)
 			# haptic_finger_img = np.fromstring(haptic_finger_img.tobytes(), dtype=np.uint8)
 			haptic_finger_img = np.array(haptic_finger_img).astype(np.uint8)
 			# haptic_finger_img = np.ascontiguousarray(np.array(haptic_finger_img).astype(np.uint8))
@@ -234,7 +237,7 @@ class PushingController:
 		return stem_pose
 
 	def get_stem_position(self):
-
+		print("hi i am here taking the stem position")
 		tactile_prediction_seq = self.predict_tactile_seq().squeeze().detach()
 		self.tactile_predictions[self.time_step] = tactile_prediction_seq # -------> I should filter the bottom part of the image
 
@@ -298,4 +301,4 @@ class PushingController:
 
 if __name__ == '__main__':
 	pc = PushingController()
-	#pc.save_data()
+	pc.save_data()
