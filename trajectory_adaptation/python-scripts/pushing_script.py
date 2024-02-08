@@ -7,24 +7,23 @@ import math
 import rospy
 import random
 import datetime
+import numpy as np
+import pandas as pd
 import std_msgs.msg
 import message_filters
 import moveit_msgs.msg
 import moveit_commander
 import matplotlib.pyplot
 
-import numpy as np
-import pandas as pd
-
 from math import pi
 from cv_bridge import CvBridge
-from std_msgs.msg import String, Bool, Int16MultiArray, Float64MultiArray
 from shape_msgs.msg import SolidPrimitive
 from sensor_msgs.msg import JointState, Image
-from moveit_msgs.msg import CollisionObject, DisplayTrajectory, MotionPlanRequest, Constraints, PositionConstraint, JointConstraint
-from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from actionlib_msgs.msg import GoalStatusArray
+from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
+from std_msgs.msg import String, Bool, Int16MultiArray, Float64MultiArray
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from moveit_msgs.msg import CollisionObject, DisplayTrajectory, MotionPlanRequest, Constraints, PositionConstraint, JointConstraint
 
 class RobotPusher():
     def __init__(self):
@@ -33,7 +32,6 @@ class RobotPusher():
 
         #super(RobotPusher, self).__init__(sys.argv)
         moveit_commander.roscpp_initialize(sys.argv)
-        rospy.init_node('pushing_action', anonymous=True)
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()
         group_name = "panda_arm"
@@ -79,8 +77,7 @@ class RobotPusher():
     def init_sub(self):
         self.activate_flag()
         self.goal_pose_sub = rospy.Subscriber("/opt_traj", Point, self.receive_goal_position)
-        self.robot_sub = message_filters.Subscriber('/joint_states', JointState)
-        
+        self.robot_sub = message_filters.Subscriber('/joint_states', JointState) 
 
     def init_movement(self):
         self.go_home()
@@ -88,10 +85,10 @@ class RobotPusher():
         self.go_push()
         print("ready to push the berry")
         
-    
     def activate_flag(self):
         # True = compute a new trajecory and send to me
         self.flag_pub.publish(Bool(True))
+
     def deactivate_flag(self):
         #False = Wait, I'm moving!
         self.flag_pub.publish(Bool(False))
@@ -165,15 +162,12 @@ class RobotPusher():
         self.deactivate_flag()
         self.pushing_actions()
             
-    
     def control_loop(self):
         rospy.spin()
         
-
     def read_robot_data(self):
             ee_state = self.move_group.get_current_pose().pose 
             self.robot_states.append(ee_state)
-
 
     def go_home(self):
         self.move_group.set_planner_id("PTP")         # Set to be the straight line planner
@@ -225,7 +219,5 @@ class RobotPusher():
         self.robot_vel_pub.publish(vel_msg)
 
 if __name__ == '__main__':
+    rospy.init_node('pushing_action', anonymous=True)
     robot = RobotPusher()
-    
-
-
