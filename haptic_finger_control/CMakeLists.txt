@@ -160,6 +160,7 @@ link_directories(/home/alessandro/libfranka/build/examples)
 set(EXECUTABLE_FILES
 # stem_pusher
 stem_pusher_vel
+#cartesian_pose_example_controller_AO
 )
 
 # add the executable
